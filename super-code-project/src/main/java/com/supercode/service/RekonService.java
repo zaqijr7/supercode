@@ -1,5 +1,6 @@
 package com.supercode.service;
 
+import com.supercode.entity.HeaderPayment;
 import com.supercode.repository.*;
 import com.supercode.request.GeneralRequest;
 import com.supercode.response.BaseResponse;
@@ -94,7 +95,7 @@ public class RekonService {
                 // get data pos
                 request.setPmId(pmId);
                 int countFailedPos = posRepository.getCountFailed(pmId,request.getTransDate());
-                System.out.println("Gagal "+ countFailedPos);
+
                 if(countFailedPos>0){
                     checkStatus=false;
                     break;
@@ -115,5 +116,60 @@ public class RekonService {
                     .build();
         }
 
+    }
+
+    @Transactional
+    public Response rekonSummaryData(GeneralRequest request) {
+        BaseResponse baseResponse;
+        try {
+            // get parent_id by trans date
+            List<HeaderPayment> headerPayments = headerPaymentRepository.getByTransDate(request.getTransDate());
+            System.out.println("massss");
+            for(HeaderPayment hp  : headerPayments){
+                System.out.println("masukkkkk");
+                String pmName = paymentMethodRepository.getPaymentMethodByPmId(hp.getPmId());
+                if(pmName.equalsIgnoreCase(MessageConstant.POS)){
+                    int countFailedPos = posRepository.getCountFailedByParentId(hp.getParentId());
+                    System.out.println(countFailedPos);
+                    if(countFailedPos==0){
+                        headerPaymentRepository.updateHeader(hp.getParentId());
+                    }
+                }else{
+                    int countFailedAggregator= detailPaymentAggregatorRepository.getFailedRecon(hp.getParentId());
+                    System.out.println(countFailedAggregator);
+                    if(countFailedAggregator==0){
+                        headerPaymentRepository.updateHeader(hp.getParentId());
+                    }
+
+                }
+            }
+
+            /*List<String> pmIds =  paymentMethodRepository.getPaymentMethods();
+            boolean checkStatus = true;
+            for(String pmId : pmIds){
+                // get data pos
+                request.setPmId(pmId);
+                int countFailedPos = posRepository.getCountFailed(pmId,request.getTransDate());
+
+                if(countFailedPos>0){
+                    checkStatus=false;
+                    break;
+                }
+
+            }
+            if(checkStatus){
+                // update rekon summary
+                headerPaymentRepository.updateHeaderPaymentByCondition(request.getTransDate());
+            }*/
+
+            baseResponse = new BaseResponse(MessageConstant.SUCCESS_CODE,MessageConstant.SUCCESS_MESSAGE);
+            return Response.status(baseResponse.result).entity(baseResponse).build();
+        }catch (Exception e){
+            e.printStackTrace();
+            baseResponse = new BaseResponse(MessageConstant.FAILED_CODE,MessageConstant.FAILED_MESSAGE);
+            return Response.status(baseResponse.result)
+                    .entity(baseResponse)
+                    .build();
+        }
     }
 }

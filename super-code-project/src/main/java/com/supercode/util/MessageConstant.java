@@ -16,4 +16,6 @@ public interface MessageConstant {
     String JSON_DATA_MISSING = "jsonData is missing or empty";
     String INVALID_JSON_FORMAT ="Invalid JSON format";
     String BAD_REQUEST_MESSAGE ="Bad Request";
+    String ONE_VALUE="1";
+    String TWO_VALUE ="2";
 }

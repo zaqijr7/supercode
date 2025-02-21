@@ -3,11 +3,12 @@ package com.supercode.controller;
 import com.supercode.request.GeneralRequest;
 import com.supercode.service.RekonService;
 import jakarta.inject.Inject;
-import jakarta.ws.rs.*;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
-import org.jboss.resteasy.annotations.providers.multipart.MultipartForm;
-import org.jboss.resteasy.plugins.providers.multipart.MultipartFormDataInput;
 
 @Path("")
 @Produces(MediaType.APPLICATION_JSON)
@@ -28,5 +29,11 @@ public class RekonController {
     @Path("/rekon/summary")
     public Response rekonSummary(GeneralRequest request) {
         return rekonService.rekonSummary(request);
+    }
+
+    @POST
+    @Path("/rekon/summary/data")
+    public Response rekonSummaryData(GeneralRequest request) {
+        return rekonService.rekonSummaryData(request);
     }
 }
