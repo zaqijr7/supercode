@@ -54,15 +54,12 @@ public class RekonService {
                         // select parent id
 //                        String parent_id = posRepository.getParentId(request, branchId, pmId);
                         if(countDataPos<countDataAggregator){
-                            System.out.println("masuk sini apa");
                             detailPaymentAggregatorRepository.updateFlagByCondition(request, grossAmounts);
                             posRepository.updateFlagNormalByCondition(request);
                         }else if(countDataAggregator<countDataPos){
-                            System.out.println("masuk siniii "+ grossAmountEcom);
                             posRepository.updatePosFlag(request, grossAmountEcom);
                             detailPaymentAggregatorRepository.updateFlagNormalByCondition(request, grossAmounts);
                         }else{
-                            System.out.println("apa masuk sini");
                             detailPaymentAggregatorRepository.updateFlagNormalByCondition(request, grossAmounts);
                             posRepository.updateFlagNormalByCondition(request);
                         }
@@ -124,9 +121,7 @@ public class RekonService {
         try {
             // get parent_id by trans date
             List<HeaderPayment> headerPayments = headerPaymentRepository.getByTransDate(request.getTransDate());
-            System.out.println("massss");
             for(HeaderPayment hp  : headerPayments){
-                System.out.println("masukkkkk");
                 String pmName = paymentMethodRepository.getPaymentMethodByPmId(hp.getPmId());
                 if(pmName.equalsIgnoreCase(MessageConstant.POS)){
                     int countFailedPos = posRepository.getCountFailedByParentId(hp.getParentId());
@@ -136,9 +131,8 @@ public class RekonService {
                     }
                 }else{
                     int countFailedAggregator= detailPaymentAggregatorRepository.getFailedRecon(hp.getParentId());
-                    System.out.println(countFailedAggregator);
                     if(countFailedAggregator==0){
-                        headerPaymentRepository.updateHeader(hp.getParentId());
+                        headerPaymentRepository.updateHeaderEcom(hp.getParentId());
                     }
 
                 }

@@ -50,4 +50,11 @@ public class HeaderPaymentRepository implements PanacheRepository<HeaderPayment>
                 .setParameter(1, parentId)
                 .executeUpdate();
     }
+
+    public void updateHeaderEcom(String parentId) {
+        entityManager.createNativeQuery(
+                        "update header_payment set status_rekom_ecom_vs_pos = '1' where parent_id = ?1")
+                .setParameter(1, parentId)
+                .executeUpdate();
+    }
 }
