@@ -35,12 +35,13 @@ public class HeaderPaymentRepository implements PanacheRepository<HeaderPayment>
                 .getResultList();
     }
 
-    public List<HeaderPayment> getByTransDate(String transDate) {
-        String sql = "SELECT hp FROM HeaderPayment hp WHERE hp.transDate = :transDate";
+    public List<HeaderPayment> getByTransDateAndBranchId(String transDate, String branchId) {
+        String sql = "SELECT hp FROM HeaderPayment hp WHERE hp.transDate = :transDate and hp.branchId = :branchId ";
 
 
         return entityManager.createQuery(sql, HeaderPayment.class)
                 .setParameter("transDate", transDate)
+                .setParameter("branchId", branchId)
                 .getResultList();
     }
 

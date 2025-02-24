@@ -18,4 +18,5 @@ public interface MessageConstant {
     String BAD_REQUEST_MESSAGE ="Bad Request";
     String ONE_VALUE="1";
     String TWO_VALUE ="2";
+    String THREE_VALUE ="3";
 }

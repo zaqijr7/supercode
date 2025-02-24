@@ -50,6 +50,9 @@ public class HeaderPayment {
     @Column(name = "parent_id", length = 50)
     private String parentId;
 
+    @Column(name = "branch_id", length = 50)
+    private String branchId;
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
@@ -163,5 +166,13 @@ public class HeaderPayment {
 
     public void setParentId(String parentId) {
         this.parentId = parentId;
+    }
+
+    public String getBranchId() {
+        return branchId;
+    }
+
+    public void setBranchId(String branchId) {
+        this.branchId = branchId;
     }
 }

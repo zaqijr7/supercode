@@ -36,4 +36,14 @@ public class RekonController {
     public Response rekonSummaryData(GeneralRequest request) {
         return rekonService.rekonSummaryData(request);
     }
+
+    /*
+        process 2.4 (recon only by branch and date)
+     */
+
+    @POST
+    @Path("rekon/process/compare-branch")
+    public Response rekonProcessCompareBranch(GeneralRequest request) {
+        return rekonService.rekonProcessCompareBranch(request);
+    }
 }

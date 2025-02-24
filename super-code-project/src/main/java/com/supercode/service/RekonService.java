@@ -34,40 +34,34 @@ public class RekonService {
     @Transactional
     public Response rekonProcess(GeneralRequest request) {
         BaseResponse baseResponse;
+        String branchId = request.getBranchId();
         // get data payment method
         try {
             List<String> pmIds =  paymentMethodRepository.getPaymentMethods();
             for(String pmId : pmIds){
-                // get data branch for every pm
-                List<String> branchIds = masterMerchantRepository.getBranchId();
                 // get data pos
                 request.setPmId(pmId);
-                for(String branchId : branchIds){
-                    int countDataPos = posRepository.getCountDataPost(request, branchId, pmId);
-                    List<BigDecimal> grossAmounts = posRepository.getAllGrossAmount(request, branchId);
-                    // get data aggregator
-                    int countDataAggregator = detailPaymentAggregatorRepository.getCountDataAggregator(request, branchId, grossAmounts);
-                    request.setBranchId(branchId);
-                    List<BigDecimal> grossAmountEcom = detailPaymentAggregatorRepository.getAllGrossAmount(request);
+                int countDataPos = posRepository.getCountDataPost(request, branchId, pmId);
+                List<BigDecimal> grossAmounts = posRepository.getAllGrossAmount(request, branchId);
+                // get data aggregator
+                int countDataAggregator = detailPaymentAggregatorRepository.getCountDataAggregator(request, branchId, grossAmounts);
+                request.setBranchId(branchId);
+                List<BigDecimal> grossAmountEcom = detailPaymentAggregatorRepository.getAllGrossAmount(request);
 
-                    if(countDataPos!=0 && countDataAggregator!=0){
-                        // select parent id
+                if(countDataPos!=0 && countDataAggregator!=0){
+                    // select parent id
 //                        String parent_id = posRepository.getParentId(request, branchId, pmId);
-                        if(countDataPos<countDataAggregator){
-                            detailPaymentAggregatorRepository.updateFlagByCondition(request, grossAmounts);
-                            posRepository.updateFlagNormalByCondition(request);
-                        }else if(countDataAggregator<countDataPos){
-                            posRepository.updatePosFlag(request, grossAmountEcom);
-                            detailPaymentAggregatorRepository.updateFlagNormalByCondition(request, grossAmounts);
-                        }else{
-                            detailPaymentAggregatorRepository.updateFlagNormalByCondition(request, grossAmounts);
-                            posRepository.updateFlagNormalByCondition(request);
-                        }
-
-
+                    if(countDataPos<countDataAggregator){
+                        detailPaymentAggregatorRepository.updateFlagByCondition(request, grossAmounts);
+                        posRepository.updateFlagNormalByCondition(request);
+                    }else if(countDataAggregator<countDataPos){
+                        posRepository.updatePosFlag(request, grossAmountEcom);
+                        detailPaymentAggregatorRepository.updateFlagNormalByCondition(request, grossAmounts);
+                    }else{
+                        detailPaymentAggregatorRepository.updateFlagNormalByCondition(request, grossAmounts);
+                        posRepository.updateFlagNormalByCondition(request);
                     }
                 }
-
             }
 
             baseResponse = new BaseResponse(MessageConstant.SUCCESS_CODE,MessageConstant.SUCCESS_MESSAGE);
@@ -120,12 +114,11 @@ public class RekonService {
         BaseResponse baseResponse;
         try {
             // get parent_id by trans date
-            List<HeaderPayment> headerPayments = headerPaymentRepository.getByTransDate(request.getTransDate());
+            List<HeaderPayment> headerPayments = headerPaymentRepository.getByTransDateAndBranchId(request.getTransDate(), request.getBranchId());
             for(HeaderPayment hp  : headerPayments){
                 String pmName = paymentMethodRepository.getPaymentMethodByPmId(hp.getPmId());
                 if(pmName.equalsIgnoreCase(MessageConstant.POS)){
                     int countFailedPos = posRepository.getCountFailedByParentId(hp.getParentId());
-                    System.out.println(countFailedPos);
                     if(countFailedPos==0){
                         headerPaymentRepository.updateHeader(hp.getParentId());
                     }
@@ -156,6 +149,40 @@ public class RekonService {
                 headerPaymentRepository.updateHeaderPaymentByCondition(request.getTransDate());
             }*/
 
+            baseResponse = new BaseResponse(MessageConstant.SUCCESS_CODE,MessageConstant.SUCCESS_MESSAGE);
+            return Response.status(baseResponse.result).entity(baseResponse).build();
+        }catch (Exception e){
+            e.printStackTrace();
+            baseResponse = new BaseResponse(MessageConstant.FAILED_CODE,MessageConstant.FAILED_MESSAGE);
+            return Response.status(baseResponse.result)
+                    .entity(baseResponse)
+                    .build();
+        }
+    }
+
+    @Transactional
+    public Response rekonProcessCompareBranch(GeneralRequest request) {
+        BaseResponse baseResponse;
+        // get data payment method
+        try {
+            int countDataPos = posRepository.getCountDataPostByBranch(request);
+            List<BigDecimal> grossAmounts = posRepository.getAllGrossAmountByBranch(request);
+            // get data aggregator
+            int countDataAggregator = detailPaymentAggregatorRepository.getCountDataAggregatorByBranch(request, grossAmounts);
+            List<BigDecimal> grossAmountEcom = detailPaymentAggregatorRepository.getAllGrossAmountByBranch(request);
+
+            if(countDataPos!=0 && countDataAggregator!=0){
+                if(countDataPos<countDataAggregator){
+                    detailPaymentAggregatorRepository.updateFlagByBranchCondition(request, grossAmounts);
+                    posRepository.updateFlagNormalByBranchCondition(request);
+                }else if(countDataAggregator<countDataPos){
+                    posRepository.updatePosFlagByBranch(request, grossAmountEcom);
+                    detailPaymentAggregatorRepository.updateFlagNormalByBranchCondition(request, grossAmounts);
+                }else{
+                    detailPaymentAggregatorRepository.updateFlagNormalByBranchCondition(request, grossAmounts);
+                    posRepository.updateFlagNormalByBranchCondition(request);
+                }
+            }
             baseResponse = new BaseResponse(MessageConstant.SUCCESS_CODE,MessageConstant.SUCCESS_MESSAGE);
             return Response.status(baseResponse.result).entity(baseResponse).build();
         }catch (Exception e){
