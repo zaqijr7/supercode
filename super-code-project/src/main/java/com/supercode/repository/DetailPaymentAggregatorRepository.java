@@ -114,39 +114,24 @@ public class DetailPaymentAggregatorRepository implements PanacheRepository<com.
 
     public void updateFlagByCondition(GeneralRequest request, List<BigDecimal> grossAmounts) {
         String newFlag = MessageConstant.TWO_VALUE;
+
         // Langkah 1: Identifikasi data unik berdasarkan gross_amount dengan batas jumlah yang sama di POS
         String findUniqueQuery = "SELECT detail_payment_id FROM ( " +
-                "    SELECT detail_payment_id, trans_date, trans_time FROM ( " +
-                "         SELECT dap1.detail_payment_id, dap1.gross_amount, dap1.trans_date, dap1.trans_time, " +
-                "                ROW_NUMBER() OVER (PARTITION BY dap1.gross_amount " +
-                "                                   ORDER BY dap1.trans_date, dap1.trans_time, dap1.detail_payment_id) AS rn " +
-                "         FROM detail_agregator_payment dap1 " +
-                "         WHERE dap1.trans_date = :transDate " +
-                "           AND dap1.pm_id = :pmId " +
-                "           AND dap1.branch_id = :branchId " +
-                "           AND dap1.flag_rekon_pos = '0' " +
-                "           AND dap1.gross_amount IN (:grossAmounts) ";
+                "    SELECT dap1.detail_payment_id " +
+                "    FROM detail_agregator_payment dap1 " +
+                "    WHERE dap1.trans_date = :transDate " +
+                "      AND dap1.pm_id = :pmId " +
+                "      AND dap1.branch_id = :branchId " +
+                "      AND dap1.flag_rekon_pos = '0' " +
+                "      AND dap1.gross_amount IN (:grossAmounts) ";
 
         if (request.getTransTime() != null && !request.getTransTime().isEmpty()) {
             findUniqueQuery += " AND SUBSTRING(dap1.trans_time, 1, 2) = :transTime ";
             newFlag = MessageConstant.ONE_VALUE;
         }
 
-        findUniqueQuery += "    ) innerQuery " +
-                "    WHERE rn <= ( " +
-                "         SELECT COUNT(*) FROM detail_point_of_sales pos " +
-                "         WHERE pos.trans_date = :transDate " +
-                "           AND pos.pay_method_aggregator = :pmId " +
-                "           AND pos.branch_id = :branchId " +
-                "           and pos.flag_rekon_ecom='0'" +
-                "           AND pos.gross_amount = innerQuery.gross_amount ";
-
-        if (request.getTransTime() != null && !request.getTransTime().isEmpty()) {
-            findUniqueQuery += " AND SUBSTRING(pos.trans_time, 1, 2) = :transTime ";
-        }
-
-        findUniqueQuery += "         ) " +
-                "    ORDER BY trans_date, trans_time " +
+        findUniqueQuery += "    ORDER BY dap1.trans_date, dap1.trans_time " +
+                "    LIMIT 1 " + // Ambil hanya satu baris dengan trans_time paling awal
                 ") ordered";
 
         Query uniqueQuery = entityManager.createNativeQuery(findUniqueQuery)
@@ -164,16 +149,16 @@ public class DetailPaymentAggregatorRepository implements PanacheRepository<com.
         // Langkah 2: Update hanya data yang sesuai dengan kondisi dari POS
         if (!uniqueIds.isEmpty()) {
             String updateQuery = "UPDATE detail_agregator_payment " +
-                    "SET flag_rekon_pos = " + newFlag +
-                    " WHERE detail_payment_id IN (:uniqueIds)";
+                    "SET flag_rekon_pos = :newFlag " +
+                    "WHERE detail_payment_id = :uniqueId"; // Update hanya satu baris
 
             Query updateNativeQuery = entityManager.createNativeQuery(updateQuery)
-                    .setParameter("uniqueIds", uniqueIds);
+                    .setParameter("newFlag", newFlag)
+                    .setParameter("uniqueId", uniqueIds.get(0)); // Ambil ID pertama dari hasil query
 
             updateNativeQuery.executeUpdate();
         }
     }
-
 
 
 

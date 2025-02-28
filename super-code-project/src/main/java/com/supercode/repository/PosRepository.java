@@ -169,17 +169,19 @@ public class PosRepository implements PanacheRepository<DetailPaymentPos> {
     public void updateFlagNormalByCondition(GeneralRequest request) {
         String newFlag = MessageConstant.TWO_VALUE;
         String query = "UPDATE detail_point_of_sales dpos " +
-                "JOIN (SELECT dap1.* FROM detail_agregator_payment dap1 " +
+                "JOIN (SELECT dap1.detail_payment_id, dap1.trans_date, dap1.branch_id, dap1.pm_id, dap1.gross_amount " +
+                "FROM detail_agregator_payment dap1 " +
                 "WHERE dap1.trans_date = :transDate " +
                 "AND dap1.branch_id = :branchId " +
                 "AND dap1.pm_id = :pmId ";
+
         if (request.getTransTime() != null && !request.getTransTime().isEmpty()) {
             query += "AND LEFT(dap1.trans_time, 2) = :transTime ";  // Perbaiki pencocokan waktu
             newFlag = MessageConstant.ONE_VALUE;
         }
-        query +=        "GROUP BY dap1.trans_date, dap1.branch_id, dap1.gross_amount " +  // Batasi agar hanya satu match
-                "ORDER BY dap1.trans_time ASC " +  // Prioritaskan transaksi pertama
-                "LIMIT 1) dap " +
+
+        query += "ORDER BY dap1.trans_time ASC " +  // Prioritaskan transaksi pertama
+                "LIMIT 1) dap " +  // Ambil hanya satu baris dengan trans_time paling awal
                 "ON dpos.branch_id = dap.branch_id " +
                 "AND dpos.pay_method_aggregator = dap.pm_id " +
                 "AND dpos.gross_amount = dap.gross_amount " +
@@ -202,9 +204,11 @@ public class PosRepository implements PanacheRepository<DetailPaymentPos> {
                 .setParameter("pmId", request.getPmId())
                 .setParameter("transDate", request.getTransDate())
                 .setParameter("branchId", request.getBranchId());
+
         if (request.getTransTime() != null && !request.getTransTime().isEmpty()) {
             nativeQuery.setParameter("transTime", request.getTransTime());
         }
+
         nativeQuery.executeUpdate();
     }
 

@@ -59,7 +59,6 @@ public class RekonService {
                         detailPaymentAggregatorRepository.updateFlagByCondition(request, grossAmounts);
                         posRepository.updateFlagNormalByCondition(request);
                     }else if(countDataAggregator<countDataPos){
-                        System.out.println("masuk sini kah? " + grossAmountEcom);
                         posRepository.updatePosFlag(request, grossAmountEcom);
                         detailPaymentAggregatorRepository.updateFlagNormalByCondition(request, grossAmounts);
                     }else{
