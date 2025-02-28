@@ -69,6 +69,9 @@ public class DetailPaymentPos {
     @Column(name = "parent_id", length = 50)
     private String parentId;
 
+    @Column(name = "detail_id_agg", length = 50)
+    private String detailIdAggregator;
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
@@ -220,5 +223,13 @@ public class DetailPaymentPos {
 
     public void setParentId(String parentId) {
         this.parentId = parentId;
+    }
+
+    public String getDetailIdAggregator() {
+        return detailIdAggregator;
+    }
+
+    public void setDetailIdAggregator(String detailIdAggregator) {
+        this.detailIdAggregator = detailIdAggregator;
     }
 }

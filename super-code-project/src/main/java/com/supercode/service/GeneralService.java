@@ -7,9 +7,12 @@ import com.supercode.repository.DetailPaymentAggregatorRepository;
 import com.supercode.repository.HeaderPaymentRepository;
 import com.supercode.repository.PaymentMethodRepository;
 import com.supercode.repository.PosRepository;
+import com.supercode.request.GeneralRequest;
+import com.supercode.response.BaseResponse;
 import com.supercode.util.MessageConstant;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import jakarta.ws.rs.core.Response;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.jboss.resteasy.plugins.providers.multipart.InputPart;
@@ -289,5 +292,37 @@ public class GeneralService {
         Random random = new Random();
         int randomNumber = 1000 + random.nextInt(9000);
         return datePart + randomNumber;
+    }
+
+    public void processTransTime(GeneralRequest request) {
+        /*try {
+            List<String> pmIds =  paymentMethodRepository.getPaymentMethods();
+            for(String pmId : pmIds){
+                // get data pos
+                request.setPmId(pmId);
+                int countDataPos = posRepository.getCountDataPostWithTransTime(request, pmId);
+                List<BigDecimal> grossAmounts = posRepository.getAllGrossAmount(request, branchId);
+                // get data aggregator
+                int countDataAggregator = detailPaymentAggregatorRepository.getCountDataAggregator(request, branchId, grossAmounts);
+                request.setBranchId(branchId);
+                List<BigDecimal> grossAmountEcom = detailPaymentAggregatorRepository.getAllGrossAmount(request);
+                if(countDataPos!=0 && countDataAggregator!=0){
+                    // select parent id
+//                        String parent_id = posRepository.getParentId(request, branchId, pmId);
+                    if(countDataPos<countDataAggregator){
+                        detailPaymentAggregatorRepository.updateFlagByCondition(request, grossAmounts);
+                        posRepository.updateFlagNormalByCondition(request);
+                    }else if(countDataAggregator<countDataPos){
+                        posRepository.updatePosFlag(request, grossAmountEcom);
+                        detailPaymentAggregatorRepository.updateFlagNormalByCondition(request, grossAmounts);
+                    }else{
+                        detailPaymentAggregatorRepository.updateFlagNormalByCondition(request, grossAmounts);
+                        posRepository.updateFlagNormalByCondition(request);
+                    }
+                }
+            }
+        }catch (Exception e){
+            e.printStackTrace();
+        }*/
     }
 }

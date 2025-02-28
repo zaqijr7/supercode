@@ -46,4 +46,10 @@ public class RekonController {
     public Response rekonProcessCompareBranch(GeneralRequest request) {
         return rekonService.rekonProcessCompareBranch(request);
     }
+
+    @POST
+    @Path("rekon/batch-process")
+    public Response rekonBatchProcess(GeneralRequest request) {
+        return rekonService.rekonBatchProcess(request);
+    }
 }

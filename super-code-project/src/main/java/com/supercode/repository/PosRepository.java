@@ -54,7 +54,7 @@ public class PosRepository implements PanacheRepository<DetailPaymentPos> {
         Query nativeQuery = entityManager.createNativeQuery(
                         query)
                 .setParameter(1, request.getTransDate())
-                .setParameter(2, request.getPmId())
+                .setParameter(2, "0")
                 .setParameter(3, branchId);
         if (request.getTransTime() != null && !request.getTransTime().isEmpty()) {
             nativeQuery.setParameter("transTime", request.getTransTime().substring(0, 2));
@@ -168,27 +168,48 @@ public class PosRepository implements PanacheRepository<DetailPaymentPos> {
 
     public void updateFlagNormalByCondition(GeneralRequest request) {
         String newFlag = MessageConstant.TWO_VALUE;
-        String query = "update detail_point_of_sales dpos set flag_rekon_ecom = :newFlag " +
-                "where trans_date = :transDate and branch_id = :branchId " +
-                "and flag_rekon_ecom = '0' and pay_method_aggregator = :pmId ";
-
+        String query = "UPDATE detail_point_of_sales dpos " +
+                "JOIN (SELECT dap1.* FROM detail_agregator_payment dap1 " +
+                "WHERE dap1.trans_date = :transDate " +
+                "AND dap1.branch_id = :branchId " +
+                "AND dap1.pm_id = :pmId ";
         if (request.getTransTime() != null && !request.getTransTime().isEmpty()) {
-            query += "AND SUBSTRING(trans_time, 1, 2) = :transTime ";
+            query += "AND LEFT(dap1.trans_time, 2) = :transTime ";  // Perbaiki pencocokan waktu
             newFlag = MessageConstant.ONE_VALUE;
         }
+        query +=        "GROUP BY dap1.trans_date, dap1.branch_id, dap1.gross_amount " +  // Batasi agar hanya satu match
+                "ORDER BY dap1.trans_time ASC " +  // Prioritaskan transaksi pertama
+                "LIMIT 1) dap " +
+                "ON dpos.branch_id = dap.branch_id " +
+                "AND dpos.pay_method_aggregator = dap.pm_id " +
+                "AND dpos.gross_amount = dap.gross_amount " +
+                "AND dpos.trans_date = dap.trans_date " +
+                "SET dpos.flag_rekon_ecom = :newFlag, " +
+                "dpos.detail_id_agg = dap.detail_payment_id " +
+                "WHERE dpos.flag_rekon_ecom = '0' " +
+                "AND dpos.pay_method_aggregator = :pmId " +
+                "AND dpos.trans_date = :transDate " +
+                "AND dpos.branch_id = :branchId ";
+
+        if (request.getTransTime() != null && !request.getTransTime().isEmpty()) {
+            query += "AND LEFT(dpos.trans_time, 2) = :transTime ";
+        }
+
+        System.out.println("Executing update with flag: " + newFlag);  // Debugging log
 
         Query nativeQuery = entityManager.createNativeQuery(query)
                 .setParameter("newFlag", newFlag)
+                .setParameter("pmId", request.getPmId())
                 .setParameter("transDate", request.getTransDate())
-                .setParameter("branchId", request.getBranchId())
-                .setParameter("pmId", request.getPmId());
-
+                .setParameter("branchId", request.getBranchId());
         if (request.getTransTime() != null && !request.getTransTime().isEmpty()) {
-            nativeQuery.setParameter("transTime", request.getTransTime().substring(0, 2));
+            nativeQuery.setParameter("transTime", request.getTransTime());
         }
-
         nativeQuery.executeUpdate();
     }
+
+
+
 
 
     /*public void updatePosFlag(GeneralRequest request, List<BigDecimal> grossAmounts) {
@@ -244,7 +265,7 @@ public class PosRepository implements PanacheRepository<DetailPaymentPos> {
     }*/
 
 
-    public void updatePosFlag(GeneralRequest request, List<BigDecimal> grossAmounts) {
+    /*public void updatePosFlag(GeneralRequest request, List<BigDecimal> grossAmounts) {
         String newFlag = MessageConstant.TWO_VALUE;
         String findUniqueQuery = "SELECT detail_pos_id FROM ( " +
                 "    SELECT detail_pos_id, trans_date, trans_time FROM ( " +
@@ -301,7 +322,91 @@ public class PosRepository implements PanacheRepository<DetailPaymentPos> {
 
             updateNativeQuery.executeUpdate();
         }
+    }*/
+
+    public void updatePosFlag(GeneralRequest request, List<BigDecimal> grossAmounts) {
+        String newFlag = MessageConstant.TWO_VALUE;
+        String findUniqueQuery = "WITH ranked_pos AS ( " +
+                "    SELECT dap1.detail_pos_id, dap1.gross_amount, dap1.trans_date, dap1.trans_time, dap1.pay_method_aggregator, dap1.branch_id, " +
+                "           ROW_NUMBER() OVER (PARTITION BY dap1.gross_amount ORDER BY dap1.trans_date, dap1.trans_time, dap1.detail_pos_id) AS rn " +
+                "    FROM detail_point_of_sales dap1 " +
+                "    WHERE dap1.trans_date = :transDate " +
+                "    AND dap1.pay_method_aggregator = :pmId " +
+                "    AND dap1.branch_id = :branchId " +
+                "    AND dap1.flag_rekon_ecom = '0' " +
+                "    AND dap1.gross_amount IN (:grossAmounts) ";
+
+        if (request.getTransTime() != null && !request.getTransTime().isEmpty()) {
+            findUniqueQuery += " AND SUBSTRING(dap1.trans_time, 1, 2) = :transTime ";
+            newFlag = MessageConstant.ONE_VALUE;
+        }
+
+        findUniqueQuery += " ), valid_pos AS ( " +
+                "    SELECT detail_pos_id, pay_method_aggregator, trans_date, trans_time, gross_amount, branch_id, rn " +
+                "    FROM ranked_pos " +
+                "    WHERE rn <= ( " +
+                "        SELECT COUNT(*) FROM detail_agregator_payment pos " +
+                "        WHERE pos.trans_date = :transDate " +
+                "        AND pos.pm_id = :pmId " +
+                "        AND pos.branch_id = :branchId " +
+                "        AND pos.flag_rekon_pos = '0' " +
+                "        AND pos.gross_amount = ranked_pos.gross_amount ";
+
+        if (request.getTransTime() != null && !request.getTransTime().isEmpty()) {
+            findUniqueQuery += " AND SUBSTRING(pos.trans_time, 1, 2) = :transTime ";
+        }
+
+        findUniqueQuery += "    ) " +
+                " ), ranked_agg AS ( " +
+                "    SELECT dap.detail_payment_id, dap.trans_date, dap.trans_time, dap.pm_id, dap.branch_id, dap.gross_amount, " +
+                "           ROW_NUMBER() OVER (PARTITION BY dap.gross_amount ORDER BY dap.trans_date, dap.trans_time, dap.detail_payment_id) AS rn " +
+                "    FROM detail_agregator_payment dap " +
+                "    WHERE dap.trans_date = :transDate " +
+                "    AND dap.pm_id = :pmId " +
+                "    AND dap.branch_id = :branchId " +
+                "    AND dap.flag_rekon_pos = '0' " +
+                "    AND dap.gross_amount IN (:grossAmounts) ";
+
+        if (request.getTransTime() != null && !request.getTransTime().isEmpty()) {
+            findUniqueQuery += " AND SUBSTRING(dap.trans_time, 1, 2) = :transTime ";
+        }
+
+        findUniqueQuery += " ) " +
+                "SELECT vp.detail_pos_id, ra.detail_payment_id " +
+                "FROM valid_pos vp " +
+                "JOIN ranked_agg ra " +
+                "    ON vp.rn = ra.rn " +
+                "ORDER BY vp.trans_date, vp.trans_time ";
+
+        Query uniqueQuery = entityManager.createNativeQuery(findUniqueQuery)
+                .setParameter("transDate", request.getTransDate())
+                .setParameter("pmId", request.getPmId())
+                .setParameter("branchId", request.getBranchId())
+                .setParameter("grossAmounts", grossAmounts);
+
+        if (request.getTransTime() != null && !request.getTransTime().isEmpty()) {
+            uniqueQuery.setParameter("transTime", request.getTransTime().substring(0, 2));
+        }
+
+        List<Object[]> uniqueResults = uniqueQuery.getResultList();
+
+        if (!uniqueResults.isEmpty()) {
+            for (Object[] result : uniqueResults) {
+                String updateQuery = "UPDATE detail_point_of_sales " +
+                        "SET flag_rekon_ecom = :newFlag, detail_id_agg = :detailIdAgg " +
+                        "WHERE detail_pos_id = :detailPosId";
+
+                Query updateNativeQuery = entityManager.createNativeQuery(updateQuery)
+                        .setParameter("newFlag", newFlag)
+                        .setParameter("detailIdAgg", result[1])
+                        .setParameter("detailPosId", result[0]);
+
+                updateNativeQuery.executeUpdate();
+            }
+        }
     }
+
+
 
 
     public int getCountFailedByParentId(String parentId) {
@@ -401,5 +506,22 @@ public class PosRepository implements PanacheRepository<DetailPaymentPos> {
 
             updateNativeQuery.executeUpdate();
         }
+    }
+
+
+
+    public int getCountDataPostWithTransTime(GeneralRequest request, String pmId) {
+        String query ="select count(*) from detail_point_of_sales dpos " +
+                "where trans_date = ?1 and branch_id =?2 " +
+                "and flag_rekon_ecom ='0' and pay_method_aggregator = ?3 ";
+//        query += " order by trans_date, trans_time asc";
+        Query nativeQuery = entityManager.createNativeQuery(
+                        query)
+                .setParameter(1, request.getTransDate())
+                .setParameter(2,  request.getBranchId())
+                .setParameter(3, pmId);
+
+        Object result = nativeQuery.getSingleResult();
+        return ((Number) result).intValue();
     }
 }

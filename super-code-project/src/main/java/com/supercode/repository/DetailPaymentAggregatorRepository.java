@@ -136,8 +136,9 @@ public class DetailPaymentAggregatorRepository implements PanacheRepository<com.
                 "    WHERE rn <= ( " +
                 "         SELECT COUNT(*) FROM detail_point_of_sales pos " +
                 "         WHERE pos.trans_date = :transDate " +
-                "           AND pos.pm_id = :pmId " +
+                "           AND pos.pay_method_aggregator = :pmId " +
                 "           AND pos.branch_id = :branchId " +
+                "           and pos.flag_rekon_ecom='0'" +
                 "           AND pos.gross_amount = innerQuery.gross_amount ";
 
         if (request.getTransTime() != null && !request.getTransTime().isEmpty()) {

@@ -9,6 +9,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import jakarta.ws.rs.core.Response;
+import org.hibernate.event.spi.SaveOrUpdateEvent;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -31,6 +32,9 @@ public class RekonService {
     @Inject
     MasterMerchantRepository masterMerchantRepository;
 
+    @Inject
+    GeneralService generalService;
+
     @Transactional
     public Response rekonProcess(GeneralRequest request) {
         BaseResponse baseResponse;
@@ -47,14 +51,15 @@ public class RekonService {
                 int countDataAggregator = detailPaymentAggregatorRepository.getCountDataAggregator(request, branchId, grossAmounts);
                 request.setBranchId(branchId);
                 List<BigDecimal> grossAmountEcom = detailPaymentAggregatorRepository.getAllGrossAmount(request);
-
                 if(countDataPos!=0 && countDataAggregator!=0){
                     // select parent id
 //                        String parent_id = posRepository.getParentId(request, branchId, pmId);
                     if(countDataPos<countDataAggregator){
+                        System.out.println("harusnya di sini");
                         detailPaymentAggregatorRepository.updateFlagByCondition(request, grossAmounts);
                         posRepository.updateFlagNormalByCondition(request);
                     }else if(countDataAggregator<countDataPos){
+                        System.out.println("masuk sini kah? " + grossAmountEcom);
                         posRepository.updatePosFlag(request, grossAmountEcom);
                         detailPaymentAggregatorRepository.updateFlagNormalByCondition(request, grossAmounts);
                     }else{
@@ -183,6 +188,22 @@ public class RekonService {
                     posRepository.updateFlagNormalByBranchCondition(request);
                 }
             }
+            baseResponse = new BaseResponse(MessageConstant.SUCCESS_CODE,MessageConstant.SUCCESS_MESSAGE);
+            return Response.status(baseResponse.result).entity(baseResponse).build();
+        }catch (Exception e){
+            e.printStackTrace();
+            baseResponse = new BaseResponse(MessageConstant.FAILED_CODE,MessageConstant.FAILED_MESSAGE);
+            return Response.status(baseResponse.result)
+                    .entity(baseResponse)
+                    .build();
+        }
+    }
+
+    public Response rekonBatchProcess(GeneralRequest request) {
+        BaseResponse baseResponse;
+        try {
+            // function 2.1
+            generalService.processTransTime(request);
             baseResponse = new BaseResponse(MessageConstant.SUCCESS_CODE,MessageConstant.SUCCESS_MESSAGE);
             return Response.status(baseResponse.result).entity(baseResponse).build();
         }catch (Exception e){
