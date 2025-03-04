@@ -29,4 +29,101 @@ public class PaymentMethod {
 
     @Column(name = "status", nullable = false)
     private Boolean status = true;
+
+    @Column(name = "bank_disburse", length = 50)
+    private String bankDisburse;
+
+    @Column(name = "bank_acc_no", length = 50)
+    private String bankAccNo;
+
+    @Column(name = "disburse_day", length = 50)
+    private String disburseDay;
+
+    public String getPmId() {
+        return pmId;
+    }
+
+    public void setPmId(String pmId) {
+        this.pmId = pmId;
+    }
+
+    public String getPaymentMethod() {
+        return paymentMethod;
+    }
+
+    public void setPaymentMethod(String paymentMethod) {
+        this.paymentMethod = paymentMethod;
+    }
+
+    public String getPaymentType() {
+        return paymentType;
+    }
+
+    public void setPaymentType(String paymentType) {
+        this.paymentType = paymentType;
+    }
+
+    public String getCreatedBy() {
+        return createdBy;
+    }
+
+    public void setCreatedBy(String createdBy) {
+        this.createdBy = createdBy;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public String getUpdatedBy() {
+        return updatedBy;
+    }
+
+    public void setUpdatedBy(String updatedBy) {
+        this.updatedBy = updatedBy;
+    }
+
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+        this.updatedAt = updatedAt;
+    }
+
+    public Boolean getStatus() {
+        return status;
+    }
+
+    public void setStatus(Boolean status) {
+        this.status = status;
+    }
+
+    public String getBankDisburse() {
+        return bankDisburse;
+    }
+
+    public void setBankDisburse(String bankDisburse) {
+        this.bankDisburse = bankDisburse;
+    }
+
+    public String getBankAccNo() {
+        return bankAccNo;
+    }
+
+    public void setBankAccNo(String bankAccNo) {
+        this.bankAccNo = bankAccNo;
+    }
+
+    public String getDisburseDay() {
+        return disburseDay;
+    }
+
+    public void setDisburseDay(String disburseDay) {
+        this.disburseDay = disburseDay;
+    }
 }

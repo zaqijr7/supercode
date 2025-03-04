@@ -528,4 +528,64 @@ public class PosRepository implements PanacheRepository<DetailPaymentPos> {
         Object result = nativeQuery.getSingleResult();
         return ((Number) result).intValue();
     }
+
+    public List<Long> getDetailPosId(GeneralRequest request, String branchId, String pmId) {
+        String query ="select detail_pos_id from detail_point_of_sales dpos " +
+                "where trans_date = ?1 and branch_id =?2 " +
+                "and flag_rekon_ecom ='0' and pay_method_aggregator = ?3 ";
+        if (request.getTransTime() != null && !request.getTransTime().isEmpty()) {
+            query += "AND SUBSTRING(trans_time, 1, 2) = :transTime ";
+        }
+        query += " order by trans_date, trans_time asc";
+        Query nativeQuery = entityManager.createNativeQuery(
+                        query)
+                .setParameter(1, request.getTransDate())
+                .setParameter(2,  branchId)
+                .setParameter(3, pmId);
+
+        if (request.getTransTime() != null && !request.getTransTime().isEmpty()) {
+            nativeQuery.setParameter("transTime", request.getTransTime().substring(0, 2));
+        }
+
+        List<Long> result = nativeQuery.getResultList();
+        return result;
+    }
+
+    public void updateDataPos(Long detailAggStr, String updatedVersion, Long s) {
+        String query = "UPDATE detail_point_of_sales dpos " +
+                "SET flag_rekon_ecom = :newFlag, " +
+                " detail_id_agg= :detailIdAgg " +
+                "WHERE detail_pos_id = :detailPosId ";
+        Query nativeQuery =  entityManager.createNativeQuery(query)
+                .setParameter("newFlag", updatedVersion)
+                .setParameter("detailIdAgg",detailAggStr)
+                .setParameter("detailPosId",s);
+        nativeQuery.executeUpdate();
+    }
+
+    public List<Long> getDetailPosIdByBranch(GeneralRequest request) {
+        String query ="select detail_pos_id from detail_point_of_sales dpos " +
+                "where trans_date = ?1 and branch_id =?2 " +
+                "and flag_rekon_ecom ='0' ";
+        query += " order by trans_date, trans_time asc";
+        Query nativeQuery = entityManager.createNativeQuery(
+                        query)
+                .setParameter(1, request.getTransDate())
+                .setParameter(2,  request.getBranchId());
+
+
+        List<Long> result = nativeQuery.getResultList();
+        return result;
+    }
+
+    public BigDecimal getAmountByParentId(String parentId) {
+        String query ="select sum(gross_amount) from detail_point_of_sales dpos " +
+                "where parent_id = ?1  ";
+
+        Query nativeQuery = entityManager.createNativeQuery(
+                        query)
+                .setParameter(1, parentId);
+        BigDecimal result = (BigDecimal) nativeQuery.getSingleResult();
+        return result;
+    }
 }

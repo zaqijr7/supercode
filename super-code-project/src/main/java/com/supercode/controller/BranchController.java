@@ -12,7 +12,7 @@ import jakarta.ws.rs.core.Response;
 
 @Path("")
 @Produces(MediaType.APPLICATION_JSON)
-@Consumes(MediaType.APPLICATION_JSON)
+//@Consumes(MediaType.APPLICATION_JSON)
 public class BranchController {
 
     @Inject
@@ -20,7 +20,7 @@ public class BranchController {
 
     @POST
     @Path("/branch/list")
-    public Response rekonProcess(GeneralRequest request) {
-        return branchService.getAllBranch(request);
+    public Response rekonProcess() {
+        return branchService.getAllBranch();
     }
 }

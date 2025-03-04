@@ -29,6 +29,9 @@ public class HeaderPayment {
     @Column(name = "status_rekon_ecom_vs_bank", length = 50)
     private String statusRekonEcomVsBank;
 
+    @Column(name = "status_rekom_ecom_vs_pos", length = 50)
+    private String statusRekonEcomVsPos;
+
     @Column(name = "created_by", length = 100, nullable = false)
     private String createdBy;
 
@@ -174,5 +177,13 @@ public class HeaderPayment {
 
     public void setBranchId(String branchId) {
         this.branchId = branchId;
+    }
+
+    public String getStatusRekonEcomVsPos() {
+        return statusRekonEcomVsPos;
+    }
+
+    public void setStatusRekonEcomVsPos(String statusRekonEcomVsPos) {
+        this.statusRekonEcomVsPos = statusRekonEcomVsPos;
     }
 }

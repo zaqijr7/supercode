@@ -328,4 +328,56 @@ public class DetailPaymentAggregatorRepository implements PanacheRepository<com.
         }
         nativeQuery.executeUpdate();
     }
+
+    public List<Long> getDetailIdByRequest(GeneralRequest request, List<BigDecimal> grossAmounts) {
+        String query ="select detail_payment_id from detail_agregator_payment dpos " +
+                "where trans_date = ?1  " +
+                "and gross_amount IN (?2)  and branch_id = ?3 and pm_id = ?4 " +
+                "and flag_rekon_pos ='0' order by trans_time asc";
+
+        Query nativeQuery = entityManager.createNativeQuery(
+                        query)
+                .setParameter(1, request.getTransDate())
+                .setParameter(2, grossAmounts) // Menggunakan IN dengan ()
+                .setParameter(3, request.getBranchId())
+                .setParameter(4, request.getPmId());
+        List<Long> result = nativeQuery.getResultList();
+        return result;
+    }
+
+    public void updateData(Long detailAggStr, String updatedVersion) {
+        String query = "UPDATE detail_agregator_payment dpos " +
+                "SET flag_rekon_pos = :newFlag " +
+                "WHERE detail_payment_id = :detailPaymentId ";
+        Query nativeQuery =  entityManager.createNativeQuery(query)
+                .setParameter("newFlag", updatedVersion)
+                .setParameter("detailPaymentId",detailAggStr);
+        nativeQuery.executeUpdate();
+    }
+
+    public List<Long> getDetailIdByRequestByBranch(GeneralRequest request, List<BigDecimal> grossAmounts) {
+        String query ="select detail_payment_id from detail_agregator_payment dpos " +
+                "where trans_date = ?1  " +
+                "and gross_amount IN (?2)  and branch_id = ?3 " +
+                "and flag_rekon_pos ='0' order by trans_time asc";
+
+        Query nativeQuery = entityManager.createNativeQuery(
+                        query)
+                .setParameter(1, request.getTransDate())
+                .setParameter(2, grossAmounts) // Menggunakan IN dengan ()
+                .setParameter(3, request.getBranchId());
+        List<Long> result = nativeQuery.getResultList();
+        return result;
+    }
+
+    public BigDecimal getAmountByParentId(String parentId) {
+        String query ="select sum(gross_amount) from detail_agregator_payment dpos " +
+                "where parent_id = ?1  ";
+
+        Query nativeQuery = entityManager.createNativeQuery(
+                        query)
+                .setParameter(1, parentId);
+        BigDecimal result = (BigDecimal) nativeQuery.getSingleResult();
+        return result;
+    }
 }

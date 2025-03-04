@@ -51,19 +51,37 @@ public class RekonService {
                 int countDataAggregator = detailPaymentAggregatorRepository.getCountDataAggregator(request, branchId, grossAmounts);
                 request.setBranchId(branchId);
                 List<BigDecimal> grossAmountEcom = detailPaymentAggregatorRepository.getAllGrossAmount(request);
+
                 if(countDataPos!=0 && countDataAggregator!=0){
                     // select parent id
 //                        String parent_id = posRepository.getParentId(request, branchId, pmId);
                     if(countDataPos<countDataAggregator){
-                        System.out.println("harusnya di sini");
+
                         detailPaymentAggregatorRepository.updateFlagByCondition(request, grossAmounts);
                         posRepository.updateFlagNormalByCondition(request);
                     }else if(countDataAggregator<countDataPos){
                         posRepository.updatePosFlag(request, grossAmountEcom);
                         detailPaymentAggregatorRepository.updateFlagNormalByCondition(request, grossAmounts);
                     }else{
-                        detailPaymentAggregatorRepository.updateFlagNormalByCondition(request, grossAmounts);
-                        posRepository.updateFlagNormalByCondition(request);
+//                        detailPaymentAggregatorRepository.updateFlagNormalByCondition(request, grossAmounts);
+//                        posRepository.updateFlagNormalByCondition(request);
+                        List<Long> detailAgg = detailPaymentAggregatorRepository.getDetailIdByRequest(request, grossAmounts);
+                        List<Long> detailPos = posRepository.getDetailPosId(request, branchId, pmId);
+                        String updatedVersion = MessageConstant.TWO_VALUE;
+                        if (request.getTransTime() != null && !request.getTransTime().isEmpty()) {
+                            updatedVersion = MessageConstant.ONE_VALUE;
+                        }
+                        System.out.println(detailAgg);
+                        System.out.println(detailPos);
+                        int indexPos = 0;
+                        for(Long detailAggStr : detailAgg ){
+                            System.out.println(detailAggStr);
+                            detailPaymentAggregatorRepository.updateData(detailAggStr, updatedVersion);
+                            posRepository.updateDataPos(detailAggStr, updatedVersion, detailPos.get(indexPos));
+                            indexPos++;
+                        }
+
+
                     }
                 }
             }
@@ -183,8 +201,17 @@ public class RekonService {
                     posRepository.updatePosFlagByBranch(request, grossAmountEcom);
                     detailPaymentAggregatorRepository.updateFlagNormalByBranchCondition(request, grossAmounts);
                 }else{
-                    detailPaymentAggregatorRepository.updateFlagNormalByBranchCondition(request, grossAmounts);
-                    posRepository.updateFlagNormalByBranchCondition(request);
+                    List<Long> detailAgg = detailPaymentAggregatorRepository.getDetailIdByRequestByBranch(request, grossAmounts);
+                    List<Long> detailPos = posRepository.getDetailPosIdByBranch(request);
+                    String updatedVersion = MessageConstant.THREE_VALUE;
+                    System.out.println(detailAgg);
+                    System.out.println(detailPos);
+                    int indexPos = 0;
+                    for(Long detailAggStr : detailAgg ){
+                        detailPaymentAggregatorRepository.updateData(detailAggStr, updatedVersion);
+                        posRepository.updateDataPos(detailAggStr, updatedVersion, detailPos.get(indexPos));
+                        indexPos++;
+                    }
                 }
             }
             baseResponse = new BaseResponse(MessageConstant.SUCCESS_CODE,MessageConstant.SUCCESS_MESSAGE);

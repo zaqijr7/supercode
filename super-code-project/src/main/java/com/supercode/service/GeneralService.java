@@ -295,34 +295,33 @@ public class GeneralService {
     }
 
     public void processTransTime(GeneralRequest request) {
-        /*try {
-            List<String> pmIds =  paymentMethodRepository.getPaymentMethods();
-            for(String pmId : pmIds){
-                // get data pos
-                request.setPmId(pmId);
-                int countDataPos = posRepository.getCountDataPostWithTransTime(request, pmId);
-                List<BigDecimal> grossAmounts = posRepository.getAllGrossAmount(request, branchId);
-                // get data aggregator
-                int countDataAggregator = detailPaymentAggregatorRepository.getCountDataAggregator(request, branchId, grossAmounts);
-                request.setBranchId(branchId);
-                List<BigDecimal> grossAmountEcom = detailPaymentAggregatorRepository.getAllGrossAmount(request);
-                if(countDataPos!=0 && countDataAggregator!=0){
-                    // select parent id
-//                        String parent_id = posRepository.getParentId(request, branchId, pmId);
-                    if(countDataPos<countDataAggregator){
-                        detailPaymentAggregatorRepository.updateFlagByCondition(request, grossAmounts);
-                        posRepository.updateFlagNormalByCondition(request);
-                    }else if(countDataAggregator<countDataPos){
-                        posRepository.updatePosFlag(request, grossAmountEcom);
-                        detailPaymentAggregatorRepository.updateFlagNormalByCondition(request, grossAmounts);
-                    }else{
-                        detailPaymentAggregatorRepository.updateFlagNormalByCondition(request, grossAmounts);
-                        posRepository.updateFlagNormalByCondition(request);
+        try {
+            int countDataPos = posRepository.getCountDataPostByBranch(request);
+            List<BigDecimal> grossAmounts = posRepository.getAllGrossAmountByBranch(request);
+            // get data aggregator
+            int countDataAggregator = detailPaymentAggregatorRepository.getCountDataAggregatorByBranch(request, grossAmounts);
+            List<BigDecimal> grossAmountEcom = detailPaymentAggregatorRepository.getAllGrossAmountByBranch(request);
+
+            if(countDataPos!=0 && countDataAggregator!=0){
+                if(countDataPos<countDataAggregator){
+                    detailPaymentAggregatorRepository.updateFlagByBranchCondition(request, grossAmounts);
+                    posRepository.updateFlagNormalByBranchCondition(request);
+                }else if(countDataAggregator<countDataPos){
+                    posRepository.updatePosFlagByBranch(request, grossAmountEcom);
+                    detailPaymentAggregatorRepository.updateFlagNormalByBranchCondition(request, grossAmounts);
+                }else{
+                    List<Long> detailAgg = detailPaymentAggregatorRepository.getDetailIdByRequestByBranch(request, grossAmounts);
+                    List<Long> detailPos = posRepository.getDetailPosIdByBranch(request);
+                    String updatedVersion = MessageConstant.THREE_VALUE;
+                    System.out.println(detailAgg);
+                    System.out.println(detailPos);
+                    int indexPos = 0;
+                    for(Long detailAggStr : detailAgg ){
+                        detailPaymentAggregatorRepository.updateData(detailAggStr, updatedVersion);
+                        posRepository.updateDataPos(detailAggStr, updatedVersion, detailPos.get(indexPos));
+                        indexPos++;
                     }
                 }
             }
-        }catch (Exception e){
-            e.printStackTrace();
-        }*/
     }
 }
