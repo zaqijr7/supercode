@@ -380,4 +380,34 @@ public class DetailPaymentAggregatorRepository implements PanacheRepository<com.
         BigDecimal result = (BigDecimal) nativeQuery.getSingleResult();
         return result;
     }
+
+    public List<String> getListTransTime(GeneralRequest request) {
+        String query ="select DISTINCT SUBSTRING(dpos.trans_time, 1, 2)  from detail_agregator_payment dpos\n" +
+                "where dpos.branch_id = ?1 and dpos.trans_date = ?2 and flag_rekon_pos = '0' \n" +
+                "order by dpos.trans_time ";
+        Query nativeQuery = entityManager.createNativeQuery(
+                        query)
+                .setParameter(2, request.getTransDate())
+                .setParameter(1,  request.getBranchId());
+
+        List<String> result = nativeQuery.getResultList();
+        return result;
+    }
+
+    public List<Long> getDetailIdByRequestByBranch(GeneralRequest request) {
+        String query ="select distinct detail_payment_id from detail_agregator_payment dpos " +
+                " join detail_point_of_sales dap" +
+                " where dpos.trans_date = ?1  " +
+                "AND SUBSTRING(dpos.trans_time, 1, 2) = ?2  and dpos.branch_id = ?3 and dpos.pm_id= ?4 " +
+                "and dpos.flag_rekon_pos ='0' order by dpos.trans_time asc";
+
+        Query nativeQuery = entityManager.createNativeQuery(
+                        query)
+                .setParameter(1, request.getTransDate())
+                .setParameter(2, request.getTransTime())
+                .setParameter(3, request.getBranchId())
+                .setParameter(4, request.getPmId());
+        List<Long> result = nativeQuery.getResultList();
+        return result;
+    }
 }

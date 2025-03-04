@@ -3,10 +3,8 @@ package com.supercode.service;
 import com.supercode.entity.DetailPaymentAggregator;
 import com.supercode.entity.DetailPaymentPos;
 import com.supercode.entity.HeaderPayment;
-import com.supercode.repository.DetailPaymentAggregatorRepository;
-import com.supercode.repository.HeaderPaymentRepository;
-import com.supercode.repository.PaymentMethodRepository;
-import com.supercode.repository.PosRepository;
+import com.supercode.entity.LogRecon;
+import com.supercode.repository.*;
 import com.supercode.request.GeneralRequest;
 import com.supercode.response.BaseResponse;
 import com.supercode.util.MessageConstant;
@@ -22,10 +20,7 @@ import java.io.InputStream;
 import java.math.BigDecimal;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
+import java.util.*;
 
 @ApplicationScoped
 public class GeneralService {
@@ -42,6 +37,14 @@ public class GeneralService {
     @Inject
     DetailPaymentAggregatorRepository detailPaymentAggregatorRepository;
 
+    @Inject
+    BankMutationRepository bankMutationRepository;
+
+    @Inject
+    LogReconRepository logReconRepository;
+
+
+
 
     public String saveHeaderPayment(MultipartFormDataInput file, String paymentWay, String pmId) {
         String parentId = generateRandomCode();
@@ -49,10 +52,10 @@ public class GeneralService {
         List<InputPart> fileParts = formDataMap.get("file");
         HeaderPayment headerPayment = new HeaderPayment();
 
-        if(paymentWay.equalsIgnoreCase(MessageConstant.POS)){
+        if (paymentWay.equalsIgnoreCase(MessageConstant.POS)) {
             paymentWay = paymentMethodRepository.getPaymentIdByPaymentMethod(paymentWay);
             headerPayment.setPmId(paymentWay);
-        }else{
+        } else {
             headerPayment.setPmId(pmId);
         }
         InputPart filePart = fileParts.get(0);
@@ -62,6 +65,7 @@ public class GeneralService {
         return parentId;
 
     }
+
     private String getFileName(InputPart inputPart) {
         try {
             Map<String, List<String>> headers = inputPart.getHeaders();
@@ -80,18 +84,18 @@ public class GeneralService {
 
     public void saveDetailPayment(MultipartFormDataInput file, String paymentType, String parentId, String pmId) {
         try {
-            if(paymentType.equalsIgnoreCase(MessageConstant.POS)){
+            if (paymentType.equalsIgnoreCase(MessageConstant.POS)) {
                 saveDetailPos(file, parentId);
-            }else{
+            } else {
                 String paymentMethod = paymentMethodRepository.getPaymentMethodByPmId(pmId);
-                if (paymentMethod.equalsIgnoreCase(MessageConstant.SHOPEEFOOD)){
+                if (paymentMethod.equalsIgnoreCase(MessageConstant.SHOPEEFOOD)) {
                     saveDetailShopeeFood(file, pmId, parentId);
                 }
                 /*else if(paymentMethod.equalsIgnoreCase(MessageConstant.GRABFOOD)){
                     saveDetailGrabFood(file, pmId, branchId);
                 }*/
             }
-        }catch (Exception e){
+        } catch (Exception e) {
 
         }
     }
@@ -137,18 +141,18 @@ public class GeneralService {
                     dpa.setGrossAmount(grossAmount);
                     dpa.setNetAmount(nettAmount);
                     dpa.setCharge(dpa.getGrossAmount().subtract(dpa.getNetAmount()));
-                    dpa.setPaymentId(dpa.getTransId()+dpa.getPmId());
+                    dpa.setPaymentId(dpa.getTransId() + dpa.getPmId());
                     dpa.setSettlementDate(formattedTimeDate);
                     dpa.setSettlementTime(formattedTime);
                     detailPaymentAggregatorRepository.persist(dpa);
                 }
             }
-        }catch (Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    private InputPart getInputPart(MultipartFormDataInput file){
+    private InputPart getInputPart(MultipartFormDataInput file) {
         Map<String, List<InputPart>> fileMap = file.getFormDataMap();
 
         List<InputPart> fileParts = fileMap.get("file"); // Sesuaikan key dengan yang dikirim di Postman
@@ -170,7 +174,7 @@ public class GeneralService {
                 Sheet sheet = workbook.getSheetAt(0);
                 for (Row row : sheet) {
                     if (row.getRowNum() == 0) continue;
-                    if(row==null) break;
+                    if (row == null) break;
                     Cell pmIdCell = row.getCell(4);
                     String transId = row.getCell(5).getStringCellValue();
                     String branchId = row.getCell(0).getStringCellValue();
@@ -210,9 +214,9 @@ public class GeneralService {
                 String getTransDate = posRepository.getTransDateByParentId(parentId);
                 headerPaymentRepository.updateDate(parentId, getTransDate);
             }
-        }catch (Exception e){
+        } catch (Exception e) {
 
-                e.printStackTrace();
+            e.printStackTrace();
         }
     }
 
@@ -266,19 +270,19 @@ public class GeneralService {
                 String getTransDate = detailPaymentAggregatorRepository.getTransDateByParentId(parentId);
                 headerPaymentRepository.updateDate(parentId, getTransDate);
             }
-        }catch (Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    private String getDate(Cell timeTransCell){
+    private String getDate(Cell timeTransCell) {
         Date dateTime = timeTransCell.getDateCellValue();
         SimpleDateFormat timeFormatDate = new SimpleDateFormat("yyyy-MM-dd");
         String formattedTimeDate = timeFormatDate.format(dateTime);
         return formattedTimeDate;
     }
 
-    private String getTime(Cell timeTransCell){
+    private String getTime(Cell timeTransCell) {
         Date date = timeTransCell.getDateCellValue();
         SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm:ss");
         String formattedTime = timeFormat.format(date);
@@ -294,34 +298,86 @@ public class GeneralService {
         return datePart + randomNumber;
     }
 
-    public void processTransTime(GeneralRequest request) {
-        try {
-            int countDataPos = posRepository.getCountDataPostByBranch(request);
-            List<BigDecimal> grossAmounts = posRepository.getAllGrossAmountByBranch(request);
-            // get data aggregator
-            int countDataAggregator = detailPaymentAggregatorRepository.getCountDataAggregatorByBranch(request, grossAmounts);
-            List<BigDecimal> grossAmountEcom = detailPaymentAggregatorRepository.getAllGrossAmountByBranch(request);
 
-            if(countDataPos!=0 && countDataAggregator!=0){
-                if(countDataPos<countDataAggregator){
-                    detailPaymentAggregatorRepository.updateFlagByBranchCondition(request, grossAmounts);
-                    posRepository.updateFlagNormalByBranchCondition(request);
-                }else if(countDataAggregator<countDataPos){
-                    posRepository.updatePosFlagByBranch(request, grossAmountEcom);
-                    detailPaymentAggregatorRepository.updateFlagNormalByBranchCondition(request, grossAmounts);
-                }else{
-                    List<Long> detailAgg = detailPaymentAggregatorRepository.getDetailIdByRequestByBranch(request, grossAmounts);
-                    List<Long> detailPos = posRepository.getDetailPosIdByBranch(request);
-                    String updatedVersion = MessageConstant.THREE_VALUE;
-                    System.out.println(detailAgg);
-                    System.out.println(detailPos);
-                    int indexPos = 0;
-                    for(Long detailAggStr : detailAgg ){
-                        detailPaymentAggregatorRepository.updateData(detailAggStr, updatedVersion);
-                        posRepository.updateDataPos(detailAggStr, updatedVersion, detailPos.get(indexPos));
-                        indexPos++;
+    public void processTransTime(GeneralRequest request) {
+        String updatedVersion = MessageConstant.ONE_VALUE;
+        try {
+            List<String> transTimes = new ArrayList<>();
+            List<String> transTimePos = posRepository.getListTransTime(request);
+            List<String> transTimeAgg = detailPaymentAggregatorRepository.getListTransTime(request);
+
+            if (transTimePos.size() >= transTimeAgg.size()) {
+                transTimes.addAll(transTimePos);
+            } else {
+                transTimes.addAll(transTimeAgg);
+            }
+
+            List<String> pmIds =  paymentMethodRepository.getPaymentMethods();
+            for(String pmId : pmIds){
+                request.setPmId(pmId);
+                for(String transTime : transTimes){
+                    request.setTransTime(transTime);
+                    List<Long> detailAgg = detailPaymentAggregatorRepository.getDetailIdByRequestByBranch(request);
+                    List<Long> detailPos = posRepository.getDetailPosIdByBranchAndTransTime(request);
+                    System.out.println("leng pos "+ detailPos.size());
+                    System.out.println("leng agg "+ detailAgg.size());
+                    if(detailPos.size()!=0 && detailAgg.size()!=0){
+
+                        if (detailPos.size() > detailAgg.size()) {
+                            int indexPos = 0;
+                            for(Long detailAggStr : detailAgg ){
+                                detailPaymentAggregatorRepository.updateData(detailAggStr, updatedVersion);
+                                posRepository.updateDataPos(detailAggStr, updatedVersion, detailPos.get(indexPos));
+                                indexPos++;
+                            }
+                        } else if(detailPos.size()<detailAgg.size()){
+                            int indexAgg = 0;
+                            for(Long detailPosString : detailPos ){
+                                detailPaymentAggregatorRepository.updateData(detailAgg.get(indexAgg), updatedVersion);
+                                posRepository.updateDataPos(detailAgg.get(indexAgg), updatedVersion, detailPosString);
+                                indexAgg++;
+                            }
+                        }else{
+                            int indexPos = 0;
+                            for(Long detailAggStr : detailAgg ){
+                                detailPaymentAggregatorRepository.updateData(detailAggStr, updatedVersion);
+                                posRepository.updateDataPos(detailAggStr, updatedVersion, detailPos.get(indexPos));
+                                indexPos++;
+                            }
+                        }
                     }
+
+
                 }
             }
+
+
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+    }
+
+    public void reconBankAggregator(GeneralRequest request) {
+        int countDataBank = bankMutationRepository.getCountBank(request);
+    }
+
+
+    public Response saveDataLog(GeneralRequest request){
+        BaseResponse baseResponse;
+        try {
+            LogRecon logRecon = new LogRecon();
+            logRecon.setBranchId(request.getBranchId());
+            logRecon.setSubmittedAt(request.getTransDate());
+//            logRecon.setSubmittedOn(request.getTransTime());
+            logReconRepository.persist(logRecon);
+            baseResponse = new BaseResponse(MessageConstant.SUCCESS_CODE,MessageConstant.SUCCESS_MESSAGE);
+            return Response.status(baseResponse.result).entity(baseResponse).build();
+        }catch (Exception e){
+            e.printStackTrace();
+            baseResponse = new BaseResponse(MessageConstant.FAILED_CODE,MessageConstant.FAILED_MESSAGE);
+            return Response.status(baseResponse.result)
+                    .entity(baseResponse)
+                    .build();
+        }
     }
 }

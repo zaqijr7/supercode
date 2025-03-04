@@ -45,6 +45,7 @@ public class TransactionDTO {
     public static class TransactionList{
         private String  transactionSource;
         private BigDecimal amount;
+        boolean statusRecon;
 
         public String getTransactionSource() {
             return transactionSource;
@@ -60,6 +61,14 @@ public class TransactionDTO {
 
         public void setAmount(BigDecimal amount) {
             this.amount = amount;
+        }
+
+        public boolean isStatusRecon() {
+            return statusRecon;
+        }
+
+        public void setStatusRecon(boolean statusRecon) {
+            this.statusRecon = statusRecon;
         }
     }
 }

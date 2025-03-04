@@ -99,6 +99,7 @@ public class TransactionService {
 
                 transactionList.setTransactionSource(transactionSource);
                 transactionList.setAmount(amount);
+                transactionList.setStatusRecon(statusRecon);
                 transactionLists.add(transactionList);
             }
             transactionDTO.setStatusRecon(statusRecon);

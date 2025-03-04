@@ -20,19 +20,19 @@ public class RekonController {
 
 
     @POST
-    @Path("/rekon/process")
+    @Path("/recon/process")
     public Response rekonProcess(GeneralRequest request) {
         return rekonService.rekonProcess(request);
     }
 
     @POST
-    @Path("/rekon/summary")
+    @Path("/recon/summary")
     public Response rekonSummary(GeneralRequest request) {
         return rekonService.rekonSummary(request);
     }
 
     @POST
-    @Path("/rekon/summary/data")
+    @Path("/recon/summary/data")
     public Response rekonSummaryData(GeneralRequest request) {
         return rekonService.rekonSummaryData(request);
     }
@@ -42,14 +42,20 @@ public class RekonController {
      */
 
     @POST
-    @Path("rekon/process/compare-branch")
+    @Path("recon/process/compare-branch")
     public Response rekonProcessCompareBranch(GeneralRequest request) {
         return rekonService.rekonProcessCompareBranch(request);
     }
 
     @POST
-    @Path("rekon/batch-process")
+    @Path("recon/batch-process")
     public Response rekonBatchProcess(GeneralRequest request) {
         return rekonService.rekonBatchProcess(request);
+    }
+
+    @POST
+    @Path("recon/bank-aggregator")
+    public Response reconBankAggregator(GeneralRequest request) {
+        return rekonService.reconBankAggregator(request);
     }
 }
