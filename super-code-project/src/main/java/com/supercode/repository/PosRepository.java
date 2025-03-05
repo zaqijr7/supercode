@@ -620,4 +620,5 @@ public class PosRepository implements PanacheRepository<DetailPaymentPos> {
         return nativeQuery.getResultList();
     }
 
+
 }

@@ -58,4 +58,10 @@ public class HeaderPaymentRepository implements PanacheRepository<HeaderPayment>
                 .setParameter(1, parentId)
                 .executeUpdate();
     }
+
+    public List<String> getPaymentMethodByDate(String transDate) {
+        return  entityManager.createNativeQuery(
+                        "SELECT pm_id FROM header_payment WHERE  pm_id!='0' and trans_date = ?1 ").setParameter(1, transDate)
+                .getResultList();
+    }
 }

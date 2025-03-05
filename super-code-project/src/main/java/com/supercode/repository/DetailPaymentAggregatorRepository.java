@@ -410,4 +410,30 @@ public class DetailPaymentAggregatorRepository implements PanacheRepository<com.
         List<Long> result = nativeQuery.getResultList();
         return result;
     }
+
+    public int getCountDataAggByDate(GeneralRequest request, List<BigDecimal> netAmountBank) {
+        String query ="select count(*) from detail_agregator_payment dpos " +
+                "where settlement_date = ?1 and flag_rekon_bank='0' and net_amount in(?2) and pm_id = ?3";
+        Query nativeQuery = entityManager.createNativeQuery(
+                        query)
+                .setParameter(1, request.getTransDate())
+                .setParameter(2, netAmountBank)
+                .setParameter(3, request.getPmId());
+
+
+        Object result = nativeQuery.getSingleResult();
+        return ((Number) result).intValue();
+
+    }
+
+    public void updateDataReconBank(GeneralRequest request, List<BigDecimal> netAmountBank) {
+        String query ="update detail_agregator_payment set flag_rekon_bank ='1' " +
+                "where settlement_date = ?1 and flag_rekon_bank='0' and net_amount in(?2) and pm_id = ?3 ";
+        Query nativeQuery = entityManager.createNativeQuery(
+                        query)
+                .setParameter(1, request.getTransDate())
+                .setParameter(2, netAmountBank)
+                .setParameter(3, request.getPmId());
+        nativeQuery.executeUpdate();
+    }
 }

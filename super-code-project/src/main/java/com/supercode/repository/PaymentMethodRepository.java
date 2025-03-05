@@ -34,4 +34,6 @@ public class PaymentMethodRepository implements PanacheRepository<PaymentMethod>
                 .getSingleResult();
 
     }
+
+
 }

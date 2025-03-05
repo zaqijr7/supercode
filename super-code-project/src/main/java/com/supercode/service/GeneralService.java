@@ -10,6 +10,7 @@ import com.supercode.response.BaseResponse;
 import com.supercode.util.MessageConstant;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import jakarta.transaction.Transactional;
 import jakarta.ws.rs.core.Response;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -357,8 +358,27 @@ public class GeneralService {
         }
     }
 
+    @Transactional
     public void reconBankAggregator(GeneralRequest request) {
-        int countDataBank = bankMutationRepository.getCountBank(request);
+
+        // get pm id by date
+        List<String> pmIds = headerPaymentRepository.getPaymentMethodByDate(request.getTransDate());
+        for(String pmId : pmIds){
+
+            request.setPmId(pmId);
+            int countDataBank = bankMutationRepository.getCountBank(request);
+            List<BigDecimal> netAmountBank = bankMutationRepository.getAmontBank(request);
+
+            int countDataAgg = detailPaymentAggregatorRepository.getCountDataAggByDate(request, netAmountBank);
+            if(countDataAgg>0 && countDataBank>0){
+                if(countDataAgg==countDataBank){
+                    // update data agg
+                    detailPaymentAggregatorRepository.updateDataReconBank(request, netAmountBank);
+                }
+            }
+        }
+
+
     }
 
 
