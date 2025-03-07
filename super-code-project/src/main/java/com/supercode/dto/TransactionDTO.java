@@ -8,6 +8,7 @@ public class TransactionDTO {
     private String branchId;
     private boolean statusRecon;
     private List<TransactionList> transactionList;
+    private int submitStatus;
 
 
     public String getTransactionDate() {
@@ -42,10 +43,19 @@ public class TransactionDTO {
         this.transactionList = transactionList;
     }
 
+    public int isSubmitStatus() {
+        return submitStatus;
+    }
+
+    public void setSubmitStatus(int submitStatus) {
+        this.submitStatus = submitStatus;
+    }
+
     public static class TransactionList{
         private String  transactionSource;
         private BigDecimal amount;
         boolean statusRecon;
+        private String paymentId;
 
         public String getTransactionSource() {
             return transactionSource;
@@ -69,6 +79,14 @@ public class TransactionDTO {
 
         public void setStatusRecon(boolean statusRecon) {
             this.statusRecon = statusRecon;
+        }
+
+        public String getPaymentId() {
+            return paymentId;
+        }
+
+        public void setPaymentId(String paymentId) {
+            this.paymentId = paymentId;
         }
     }
 }

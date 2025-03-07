@@ -4,13 +4,10 @@ import com.supercode.dto.PaymentDTO;
 import com.supercode.dto.PaymentSourceDTO;
 import com.supercode.dto.TransactionDTO;
 import com.supercode.entity.HeaderPayment;
-import com.supercode.repository.HeaderPaymentRepository;
+import com.supercode.repository.*;
 import com.supercode.request.GeneralRequest;
 import com.supercode.entity.PaymentMethod;
-import com.supercode.repository.PosRepository;
-import com.supercode.repository.DetailPaymentAggregatorRepository;
 import com.supercode.response.BaseResponse;
-import com.supercode.repository.PaymentMethodRepository;
 import com.supercode.util.MessageConstant;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -35,6 +32,9 @@ public class TransactionService {
 
     @Inject
     DetailPaymentAggregatorRepository detailPaymentAggregatorRepository;
+
+    @Inject
+    LogReconRepository logReconRepository;
 
     public Response getAllPaymentTransaction() {
         BaseResponse baseResponse;
@@ -73,36 +73,40 @@ public class TransactionService {
 
     public Response getBranchTransaction(GeneralRequest request) {
         BaseResponse baseResponse;
-        boolean statusRecon=MessageConstant.TRUE_VALUE;
+        boolean statusReconAll=MessageConstant.TRUE_VALUE;
         List<TransactionDTO.TransactionList> transactionLists = new ArrayList<>();
         try {
             TransactionDTO transactionDTO = new TransactionDTO();
             transactionDTO.setTransactionDate(request.getTransDate());
             transactionDTO.setBranchId(request.getBranchId());
             List<HeaderPayment> headerPayments = headerPaymentRepository.getByTransDateAndBranchId(request.getTransDate(), request.getBranchId());
-
+            int submitStatus = logReconRepository.getSubmitStatus(request);
             for(HeaderPayment headerPayment : headerPayments){
+                boolean statusRecon=MessageConstant.TRUE_VALUE;
                 TransactionDTO.TransactionList transactionList = new TransactionDTO.TransactionList();
                 String transactionSource = paymentMethodRepository.getPaymentMethodByPmId(headerPayment.getPmId());
                 BigDecimal amount;
                 if(transactionSource.equalsIgnoreCase(MessageConstant.POS)){
                     if(!headerPayment.getStatusRekonPosVsEcom().equalsIgnoreCase("1")){
+                        statusReconAll=MessageConstant.FALSE_VALUE;
                         statusRecon = MessageConstant.FALSE_VALUE;
                     }
                     amount = posRepository.getAmountByParentId(headerPayment.getParentId());
                 }else{
                     amount = detailPaymentAggregatorRepository.getAmountByParentId(headerPayment.getParentId());
                     if(!headerPayment.getStatusRekonEcomVsPos().equals("1")){
+                        statusReconAll=MessageConstant.FALSE_VALUE;
                         statusRecon = MessageConstant.FALSE_VALUE;
                     }
                 }
-
+                transactionList.setPaymentId(headerPayment.getPmId());
                 transactionList.setTransactionSource(transactionSource);
                 transactionList.setAmount(amount);
                 transactionList.setStatusRecon(statusRecon);
                 transactionLists.add(transactionList);
             }
-            transactionDTO.setStatusRecon(statusRecon);
+            transactionDTO.setSubmitStatus(submitStatus);
+            transactionDTO.setStatusRecon(statusReconAll);
             transactionDTO.setTransactionList(transactionLists);
 
             baseResponse = new BaseResponse(200, "Successfully retrieved payment transactions");

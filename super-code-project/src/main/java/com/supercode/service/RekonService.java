@@ -219,6 +219,9 @@ public class RekonService {
     @Transactional
     public Response rekonBatchProcess(GeneralRequest request) {
         BaseResponse baseResponse;
+
+        // save data to submit process
+        generalService.saveDataLog(request);
         try {
             // function 2.1
             generalService.processTransTime(request);
@@ -234,7 +237,7 @@ public class RekonService {
             generalService.summaryReconEcom2Bank(request);
 
             // function 2.5 save to log
-            generalService.saveDataLog(request);
+
             baseResponse = new BaseResponse(MessageConstant.SUCCESS_CODE,MessageConstant.SUCCESS_MESSAGE);
             return Response.status(baseResponse.result).entity(baseResponse).build();
         }catch (Exception e){

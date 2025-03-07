@@ -1,7 +1,9 @@
 package com.supercode.repository;
 
+import com.mysql.cj.protocol.x.MessageConstants;
 import com.supercode.entity.BankMutation;
 import com.supercode.request.GeneralRequest;
+import com.supercode.util.MessageConstant;
 import io.quarkus.hibernate.orm.panache.PanacheRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.persistence.EntityManager;
@@ -39,12 +41,16 @@ public class BankMutationRepository implements PanacheRepository<BankMutation> {
     }
 
     public List<BigDecimal> getAmontBank(GeneralRequest request, String payMeth) {
+        String notesLike ="";
+        if(payMeth.equalsIgnoreCase(MessageConstant.GRABFOOD)){
+            notesLike = "ATMB";
+        }
         String query ="SELECT DISTINCT bm.amount \n" +
                 "    FROM bank_mutation bm \n" +
                 "    JOIN payment_method pm \n" +
                 "        ON pm.bank_disburse = bm.bank \n" +
                 "        AND pm.bank_acc_no = bm.account_no \n" +
-                "    WHERE trans_date = ?1 ";
+                "    WHERE trans_date = ?1 and debit_credit = 'Credit' and notes like '%"+notesLike+"%'";
         Query nativeQuery = entityManager.createNativeQuery(
                         query)
                 .setParameter(1, request.getTransDate());
@@ -56,12 +62,17 @@ public class BankMutationRepository implements PanacheRepository<BankMutation> {
 
 
     public List<Map<String, Object>> getDataBank(GeneralRequest request, String payMeth) {
+        String notesLike ="";
+        if(payMeth.equalsIgnoreCase(MessageConstant.GRABFOOD)){
+            notesLike = "ATMB";
+        }
         String query = "SELECT DISTINCT bm.amount, bm.bank_mutation_id " +
                 "FROM bank_mutation bm " +
                 "JOIN payment_method pm " +
                 "ON pm.bank_disburse = bm.bank " +
                 "AND pm.bank_acc_no = bm.account_no " +
-                "WHERE trans_date = ?1 and bank_mutation_id not in(select flag_id_bank from detail_agregator_payment) order by bm.bank_mutation_id  asc";
+                "WHERE trans_date = ?1 and bank_mutation_id not in(select flag_id_bank from detail_agregator_payment) " +
+                " and notes like '%"+notesLike+"%'  order by bm.bank_mutation_id  asc";
 
         Query nativeQuery = entityManager.createNativeQuery(query)
                 .setParameter(1, request.getTransDate());
