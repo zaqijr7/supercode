@@ -10,7 +10,10 @@ import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.Query;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @ApplicationScoped
@@ -621,4 +624,38 @@ public class PosRepository implements PanacheRepository<DetailPaymentPos> {
     }
 
 
+    public List<Map<String, Object>> getDataPosByTransTime(GeneralRequest request) {
+        String query ="select detail_pos_id, gross_amount from detail_point_of_sales dpos " +
+                "where trans_date = :transDate and flag_rekon_ecom='0'  and branch_id =:branchId ";
+        if (request.getTransTime() != null && !request.getTransTime().isEmpty()) {
+            query += "AND SUBSTRING(trans_time, 1, 2) = :transTime ";
+        }
+        if (request.getPmId() != null && !request.getPmId().isEmpty()) {
+            query += " and pay_method_aggregator = :pmId ";
+        }
+        query += " order by trans_time asc";
+        Query nativeQuery = entityManager.createNativeQuery(
+                        query)
+                .setParameter("transDate", request.getTransDate())
+                .setParameter("branchId", request.getBranchId());
+
+        if (request.getTransTime() != null && !request.getTransTime().isEmpty()) {
+            nativeQuery.setParameter("transTime", request.getTransTime());
+        }
+        if (request.getPmId() != null && !request.getPmId().isEmpty()) {
+            nativeQuery.setParameter("pmId", request.getPmId());
+        }
+
+        List<Object[]> rawResults = nativeQuery.getResultList();
+        List<Map<String, Object>> resultList = new ArrayList<>();
+
+        for (Object[] row : rawResults) {
+            Map<String, Object> map = new HashMap<>();
+            map.put("detailPosId", row[0]);
+            map.put("grossAmount", row[1]);
+            resultList.add(map);
+        }
+
+        return resultList;
+    }
 }

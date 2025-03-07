@@ -9,7 +9,10 @@ import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.Query;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @ApplicationScoped
@@ -426,14 +429,82 @@ public class DetailPaymentAggregatorRepository implements PanacheRepository<com.
 
     }
 
-    public void updateDataReconBank(GeneralRequest request, List<BigDecimal> netAmountBank) {
-        String query ="update detail_agregator_payment set flag_rekon_bank ='1' " +
-                "where settlement_date = ?1 and flag_rekon_bank='0' and net_amount in(?2) and pm_id = ?3 ";
+    public void updateDataReconBank(GeneralRequest request, BigDecimal netAmountBank, String bankId) {
+        String query ="update detail_agregator_payment set flag_rekon_bank ='1', flag_id_bank= ?1 " +
+                "where settlement_date = ?2 and flag_rekon_bank='0' and net_amount in(?3) and pm_id = ?4 ";
+        Query nativeQuery = entityManager.createNativeQuery(
+                        query)
+                .setParameter(1, bankId)
+                .setParameter(2, request.getTransDate())
+                .setParameter(3, netAmountBank)
+                .setParameter(4, request.getPmId());
+        nativeQuery.executeUpdate();
+    }
+
+    public List<Map<String, Object>> getDataAgg(GeneralRequest request, List<BigDecimal> netAmountBank) {
+        String query ="select detail_payment_id, net_amount from detail_agregator_payment dpos " +
+                "where settlement_date = ?1 and flag_rekon_bank='0' and net_amount in(?2) and pm_id = ?3";
         Query nativeQuery = entityManager.createNativeQuery(
                         query)
                 .setParameter(1, request.getTransDate())
                 .setParameter(2, netAmountBank)
                 .setParameter(3, request.getPmId());
+
+        List<Object[]> rawResults = nativeQuery.getResultList();
+        List<Map<String, Object>> resultList = new ArrayList<>();
+
+        for (Object[] row : rawResults) {
+            Map<String, Object> map = new HashMap<>();
+            map.put("detailPaymentId", row[0]);
+            map.put("netAmount", row[1]);
+            resultList.add(map);
+        }
+
+        return resultList;
+    }
+
+    public void updateDataReconAgg2Bank(Long paymentId, String bankMutationId) {
+        String query ="update detail_agregator_payment set flag_rekon_bank ='1', flag_id_bank= ?1 " +
+                "where detail_payment_id = ?2";
+        Query nativeQuery = entityManager.createNativeQuery(
+                        query)
+                .setParameter(1, bankMutationId)
+                .setParameter(2, paymentId);
         nativeQuery.executeUpdate();
+    }
+
+    public List<Map<String, Object>> getDataAggByTransTime(GeneralRequest request) {
+        String query ="select detail_payment_id, gross_amount from detail_agregator_payment dpos " +
+                "where trans_date = :transDate and flag_rekon_pos='0'  and branch_id =:branchId ";
+        if (request.getTransTime() != null && !request.getTransTime().isEmpty()) {
+            query += "AND SUBSTRING(trans_time, 1, 2) = :transTime ";
+        }
+
+        if (request.getPmId() != null && !request.getPmId().isEmpty()) {
+            query += " and pm_id = :pmId ";
+        }
+        query += " order by trans_time asc";
+        Query nativeQuery = entityManager.createNativeQuery(
+                        query)
+                .setParameter("transDate", request.getTransDate())
+                .setParameter("branchId", request.getBranchId());
+
+        if (request.getTransTime() != null && !request.getTransTime().isEmpty()) {
+            nativeQuery.setParameter("transTime", request.getTransTime());
+        }
+        if (request.getPmId() != null && !request.getPmId().isEmpty()) {
+            nativeQuery.setParameter("pmId", request.getPmId());
+        }
+        List<Object[]> rawResults = nativeQuery.getResultList();
+        List<Map<String, Object>> resultList = new ArrayList<>();
+
+        for (Object[] row : rawResults) {
+            Map<String, Object> map = new HashMap<>();
+            map.put("detailPaymentId", row[0]);
+            map.put("grossAmount", row[1]);
+            resultList.add(map);
+        }
+
+        return resultList;
     }
 }

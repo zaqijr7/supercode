@@ -9,7 +9,10 @@ import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.Query;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 
 @ApplicationScoped
@@ -18,7 +21,7 @@ public class BankMutationRepository implements PanacheRepository<BankMutation> {
     @PersistenceContext
     EntityManager entityManager;
 
-    public int getCountBank(GeneralRequest request) {
+    public int getCountBank(GeneralRequest request, String payMeth) {
         String query ="SELECT COUNT(*) \n" +
                 "FROM (\n" +
                 "    SELECT DISTINCT bm.* \n" +
@@ -26,7 +29,7 @@ public class BankMutationRepository implements PanacheRepository<BankMutation> {
                 "    JOIN payment_method pm \n" +
                 "        ON pm.bank_disburse = bm.bank \n" +
                 "        AND pm.bank_acc_no = bm.account_no \n" +
-                "    WHERE trans_date = ?1\n" +
+                "    WHERE trans_date = ?1 \n" +
                 ") AS subquery";
         Query nativeQuery = entityManager.createNativeQuery(
                         query)
@@ -35,7 +38,7 @@ public class BankMutationRepository implements PanacheRepository<BankMutation> {
         return ((Number) result).intValue();
     }
 
-    public List<BigDecimal> getAmontBank(GeneralRequest request) {
+    public List<BigDecimal> getAmontBank(GeneralRequest request, String payMeth) {
         String query ="SELECT DISTINCT bm.amount \n" +
                 "    FROM bank_mutation bm \n" +
                 "    JOIN payment_method pm \n" +
@@ -51,7 +54,29 @@ public class BankMutationRepository implements PanacheRepository<BankMutation> {
         return result;
     }
 
-    public void updateDataBank(GeneralRequest request) {
-        String query = "update bank_mutation set ";
+
+    public List<Map<String, Object>> getDataBank(GeneralRequest request, String payMeth) {
+        String query = "SELECT DISTINCT bm.amount, bm.bank_mutation_id " +
+                "FROM bank_mutation bm " +
+                "JOIN payment_method pm " +
+                "ON pm.bank_disburse = bm.bank " +
+                "AND pm.bank_acc_no = bm.account_no " +
+                "WHERE trans_date = ?1 and bank_mutation_id not in(select flag_id_bank from detail_agregator_payment) order by bm.bank_mutation_id  asc";
+
+        Query nativeQuery = entityManager.createNativeQuery(query)
+                .setParameter(1, request.getTransDate());
+
+        List<Object[]> rawResults = nativeQuery.getResultList();
+        List<Map<String, Object>> resultList = new ArrayList<>();
+
+        for (Object[] row : rawResults) {
+            Map<String, Object> map = new HashMap<>();
+            map.put("netAmount", row[0]);  // Assuming amount is in the first column
+            map.put("bankMutationId", row[1]);  // Assuming bank_mutation_id is in the second column
+            resultList.add(map);
+        }
+
+        return resultList;
     }
+
 }

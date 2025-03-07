@@ -301,7 +301,6 @@ public class GeneralService {
 
 
     public void processTransTime(GeneralRequest request) {
-        String updatedVersion = MessageConstant.ONE_VALUE;
         try {
             List<String> transTimes = new ArrayList<>();
             List<String> transTimePos = posRepository.getListTransTime(request);
@@ -318,37 +317,7 @@ public class GeneralService {
                 request.setPmId(pmId);
                 for(String transTime : transTimes){
                     request.setTransTime(transTime);
-                    List<Long> detailAgg = detailPaymentAggregatorRepository.getDetailIdByRequestByBranch(request);
-                    List<Long> detailPos = posRepository.getDetailPosIdByBranchAndTransTime(request);
-                    System.out.println("leng pos "+ detailPos.size());
-                    System.out.println("leng agg "+ detailAgg.size());
-                    if(detailPos.size()!=0 && detailAgg.size()!=0){
-
-                        if (detailPos.size() > detailAgg.size()) {
-                            int indexPos = 0;
-                            for(Long detailAggStr : detailAgg ){
-                                detailPaymentAggregatorRepository.updateData(detailAggStr, updatedVersion);
-                                posRepository.updateDataPos(detailAggStr, updatedVersion, detailPos.get(indexPos));
-                                indexPos++;
-                            }
-                        } else if(detailPos.size()<detailAgg.size()){
-                            int indexAgg = 0;
-                            for(Long detailPosString : detailPos ){
-                                detailPaymentAggregatorRepository.updateData(detailAgg.get(indexAgg), updatedVersion);
-                                posRepository.updateDataPos(detailAgg.get(indexAgg), updatedVersion, detailPosString);
-                                indexAgg++;
-                            }
-                        }else{
-                            int indexPos = 0;
-                            for(Long detailAggStr : detailAgg ){
-                                detailPaymentAggregatorRepository.updateData(detailAggStr, updatedVersion);
-                                posRepository.updateDataPos(detailAggStr, updatedVersion, detailPos.get(indexPos));
-                                indexPos++;
-                            }
-                        }
-                    }
-
-
+                    processUpdate(request, MessageConstant.ONE_VALUE);
                 }
             }
 
@@ -359,27 +328,149 @@ public class GeneralService {
     }
 
     @Transactional
-    public void reconBankAggregator(GeneralRequest request) {
+    /*public void reconBankAggregator(GeneralRequest request) {
 
         // get pm id by date
         List<String> pmIds = headerPaymentRepository.getPaymentMethodByDate(request.getTransDate());
         for(String pmId : pmIds){
 
             request.setPmId(pmId);
-            int countDataBank = bankMutationRepository.getCountBank(request);
-            List<BigDecimal> netAmountBank = bankMutationRepository.getAmontBank(request);
-
+            String payMeth = paymentMethodRepository.getPaymentMethodByPmId(pmId);
+            int countDataBank = bankMutationRepository.getCountBank(request, payMeth);
+            List<BigDecimal> netAmountBank = bankMutationRepository.getAmontBank(request, payMeth);
+            List<Map<String, Object>> dataBank = bankMutationRepository.getDataBank(request, payMeth);
+            List<Map<String, Object>> dataAgg = detailPaymentAggregatorRepository.getDataAgg(request, netAmountBank);
             int countDataAgg = detailPaymentAggregatorRepository.getCountDataAggByDate(request, netAmountBank);
             if(countDataAgg>0 && countDataBank>0){
                 if(countDataAgg==countDataBank){
                     // update data agg
-                    detailPaymentAggregatorRepository.updateDataReconBank(request, netAmountBank);
+                    for(Map<String, Object> obj : dataBank){
+
+                        detailPaymentAggregatorRepository.updateDataReconBank(request, (BigDecimal) obj.get("netAmount"), obj.get("bankMutationId").toString());
+                    }
+
+                }else if(countDataAgg>countDataBank){
+                    // to do
+                    System.out.println("apa masuk sini");
+                }else{
+                    // update data agg
+                    int index = 0;
+                    for(Map<String, Object> obj : dataAgg){
+                        if (((BigDecimal) obj.get("netAmount")).compareTo((BigDecimal) dataBank.get(index).get("netAmount")) == 0) {
+                            // Nilai BigDecimal sama
+                            detailPaymentAggregatorRepository.updateDataReconAgg2Bank((Long) obj.get("detailPaymentId"), obj.get("bankMutationId").toString());
+                        }
+
+                    }
                 }
             }
         }
 
 
+    }*/
+
+    /*public void reconBankAggregator(GeneralRequest request) {
+        System.out.println("masukkkkkk");
+        List<String> pmIds = headerPaymentRepository.getPaymentMethodByDate(request.getTransDate());
+
+        for (String pmId : pmIds) {
+            System.out.println("apakah");
+            request.setPmId(pmId);
+            String payMeth = paymentMethodRepository.getPaymentMethodByPmId(pmId);
+
+            List<Map<String, Object>> dataBank = bankMutationRepository.getDataBank(request, payMeth);
+            List<Map<String, Object>> dataAgg = detailPaymentAggregatorRepository.getDataAgg(request,
+                    bankMutationRepository.getAmontBank(request, payMeth));
+            System.out.println(dataAgg.size());
+            System.out.println(dataBank.size());
+
+            // Simpan dataBank dalam Map<netAmount, Queue<bankMutationId>>
+            Map<BigDecimal, Queue<String>> bankMap = new HashMap<>();
+            for (Map<String, Object> obj : dataBank) {
+                BigDecimal amount = (BigDecimal) obj.get("netAmount");
+                String bankMutationId = obj.get("bankMutationId").toString();
+                bankMap.putIfAbsent(amount, new LinkedList<>());
+                bankMap.get(amount).add(bankMutationId);
+                System.out.println("woyyyyy");
+            }
+
+            // Simpan dataAgg dalam Map<netAmount, Queue<detailPaymentId>>
+            Map<BigDecimal, Queue<Long>> aggMap = new HashMap<>();
+            for (Map<String, Object> obj : dataAgg) {
+                BigDecimal amount = (BigDecimal) obj.get("netAmount");
+                Long detailPaymentId = (Long) obj.get("detailPaymentId");
+                aggMap.putIfAbsent(amount, new LinkedList<>());
+                aggMap.get(amount).add(detailPaymentId);
+            }
+
+            // Proses hanya data yang punya pasangan di kedua map
+            for (BigDecimal amount : aggMap.keySet()) {
+                if (!bankMap.containsKey(amount)) {
+                    // Skip jika tidak ada jumlah yang sama di dataBank
+                    continue;
+                }
+
+                Queue<Long> aggQueue = aggMap.get(amount);
+                Queue<String> bankQueue = bankMap.get(amount);
+
+                while (!aggQueue.isEmpty() && !bankQueue.isEmpty()) {
+                    System.out.println("ada yg masuk sini? ");
+                    Long detailPaymentId = aggQueue.poll();
+                    String bankMutationId = bankQueue.poll();
+
+                    detailPaymentAggregatorRepository.updateDataReconAgg2Bank(
+                            detailPaymentId, bankMutationId
+                    );
+                }
+            }
+        }
+    }*/
+
+    public void reconBankAggregator(GeneralRequest request) {
+
+        List<String> pmIds = headerPaymentRepository.getPaymentMethodByDate(request.getTransDate());
+        for(String pmId : pmIds){
+
+            request.setPmId(pmId);
+            String payMeth = paymentMethodRepository.getPaymentMethodByPmId(pmId);
+            List<BigDecimal> netAmountBank = bankMutationRepository.getAmontBank(request, payMeth);
+            List<Map<String, Object>> dataBank = bankMutationRepository.getDataBank(request, payMeth);
+            List<Map<String, Object>> dataAgg = detailPaymentAggregatorRepository.getDataAgg(request, netAmountBank);
+
+            // Gunakan LinkedList agar bisa menghapus elemen pertama setelah match
+            LinkedList<Map<String, Object>> queueBank = new LinkedList<>(dataBank);
+
+            for (Map<String, Object> agg : dataAgg) {
+                BigDecimal aggAmount = (BigDecimal) agg.get("netAmount");
+                boolean matched = false;
+
+                Iterator<Map<String, Object>> iterator = queueBank.iterator();
+                while (iterator.hasNext()) {
+                    Map<String, Object> bank = iterator.next();
+                    BigDecimal bankAmount = (BigDecimal) bank.get("netAmount");
+
+                    if (aggAmount.compareTo(bankAmount) == 0) {
+                        // Cocok, lakukan update
+                        detailPaymentAggregatorRepository.updateDataReconAgg2Bank(
+                                (Long) agg.get("detailPaymentId"),
+                                bank.get("bankMutationId").toString()
+                        );
+
+                        // Hapus dari queueBank agar tidak digunakan dua kali
+                        iterator.remove();
+                        matched = true;
+                        break; // Stop iterasi setelah menemukan pasangan pertama
+                    }
+                }
+
+                if (!matched) {
+                    System.out.println("❌ Tidak ada pasangan untuk transaksi di dataAgg: " + agg.get("detailPaymentId"));
+                }
+            }
+        }
     }
+
+
 
 
     public Response saveDataLog(GeneralRequest request){
@@ -398,6 +489,79 @@ public class GeneralService {
             return Response.status(baseResponse.result)
                     .entity(baseResponse)
                     .build();
+        }
+    }
+
+    public void processWithoutTransTime(GeneralRequest request) {
+        try {
+            List<String> pmIds =  paymentMethodRepository.getPaymentMethods();
+            for(String pmId : pmIds){
+                request.setPmId(pmId);
+                System.out.println("phase 2 "+ request.getPmId());
+                processUpdate(request, MessageConstant.TWO_VALUE);
+            }
+
+
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+    }
+
+    public void processUpdate(GeneralRequest request, String updateMessage){
+        List<Map<String, Object>> dataAgg = detailPaymentAggregatorRepository.getDataAggByTransTime(request);
+        List<Map<String, Object>> dataPos = posRepository.getDataPosByTransTime(request);
+        LinkedList<Map<String, Object>> queueBank = new LinkedList<>(dataPos);
+        for (Map<String, Object> agg : dataAgg) {
+            BigDecimal aggAmount = (BigDecimal) agg.get("grossAmount");
+            boolean matched = false;
+
+            Iterator<Map<String, Object>> iterator = queueBank.iterator();
+            while (iterator.hasNext()) {
+                Map<String, Object> pos = iterator.next();
+                BigDecimal posAmount = (BigDecimal) pos.get("grossAmount");
+                if (aggAmount.compareTo(posAmount) == 0) {
+                    // Cocok, lakukan update
+
+                    detailPaymentAggregatorRepository.updateData(
+                            (Long) agg.get("detailPaymentId"),
+                            updateMessage
+                    );
+                    posRepository.updateDataPos((Long) agg.get("detailPaymentId"),
+                            updateMessage, (Long) pos.get("detailPosId"));
+
+                    // Hapus dari queueBank agar tidak digunakan dua kali
+                    iterator.remove();
+                    matched = true;
+                    break; // Stop iterasi setelah menemukan pasangan pertama
+                }
+            }
+
+            if (!matched) {
+                System.out.println("❌ Tidak ada pasangan untuk transaksi di dataAgg: " + agg.get("detailPaymentId"));
+            }
+        }
+    }
+
+    public void processWithTransDateAndBranch(GeneralRequest request) {
+        processUpdate(request, MessageConstant.THREE_VALUE);
+    }
+
+    public void summaryReconEcom2Bank(GeneralRequest request) {
+        List<HeaderPayment> headerPayments = headerPaymentRepository.getByTransDateAndBranchId(request.getTransDate(), request.getBranchId());
+        for(HeaderPayment hp  : headerPayments){
+            String pmName = paymentMethodRepository.getPaymentMethodByPmId(hp.getPmId());
+            if(pmName.equalsIgnoreCase(MessageConstant.POS)){
+                int countFailedPos = posRepository.getCountFailedByParentId(hp.getParentId());
+                if(countFailedPos==0){
+                    headerPaymentRepository.updateHeader(hp.getParentId());
+                }
+            }else{
+                int countFailedAggregator= detailPaymentAggregatorRepository.getFailedRecon(hp.getParentId());
+                if(countFailedAggregator==0){
+                    headerPaymentRepository.updateHeaderEcom(hp.getParentId());
+                }
+
+            }
         }
     }
 }

@@ -84,6 +84,9 @@ public class DetailPaymentAggregator extends PanacheEntityBase {
     @Column(name = "parent_id", length = 50)
     private String parentId;
 
+    @Column(name = "flag_id_bank", length = 50)
+    private String flagIdBank;
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
@@ -268,6 +271,14 @@ public class DetailPaymentAggregator extends PanacheEntityBase {
 
     public void setParentId(String parentId) {
         this.parentId = parentId;
+    }
+
+    public String getFlagIdBank() {
+        return flagIdBank;
+    }
+
+    public void setFlagIdBank(String flagIdBank) {
+        this.flagIdBank = flagIdBank;
     }
 }
 

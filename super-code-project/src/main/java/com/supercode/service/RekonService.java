@@ -222,6 +222,19 @@ public class RekonService {
         try {
             // function 2.1
             generalService.processTransTime(request);
+            request.setTransTime(null);
+            // function 2.2
+            generalService.processWithoutTransTime(request);
+
+            // function 2.4
+            request.setPmId(null);
+            generalService.processWithTransDateAndBranch(request);
+
+            // function 2.3
+            generalService.summaryReconEcom2Bank(request);
+
+            // function 2.5 save to log
+            generalService.saveDataLog(request);
             baseResponse = new BaseResponse(MessageConstant.SUCCESS_CODE,MessageConstant.SUCCESS_MESSAGE);
             return Response.status(baseResponse.result).entity(baseResponse).build();
         }catch (Exception e){
