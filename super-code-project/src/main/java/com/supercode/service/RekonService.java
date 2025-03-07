@@ -234,9 +234,10 @@ public class RekonService {
             generalService.processWithTransDateAndBranch(request);
 
             // function 2.3
-            generalService.summaryReconEcom2Bank(request);
+            generalService.summaryReconEcom2Pos(request);
 
-            // function 2.5 save to log
+            // function 2.5 recon ecommerce to bank
+            generalService.reconBankAggregator(request);
 
             baseResponse = new BaseResponse(MessageConstant.SUCCESS_CODE,MessageConstant.SUCCESS_MESSAGE);
             return Response.status(baseResponse.result).entity(baseResponse).build();

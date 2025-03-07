@@ -546,7 +546,7 @@ public class GeneralService {
         processUpdate(request, MessageConstant.THREE_VALUE);
     }
 
-    public void summaryReconEcom2Bank(GeneralRequest request) {
+    public void summaryReconEcom2Pos(GeneralRequest request) {
         List<HeaderPayment> headerPayments = headerPaymentRepository.getByTransDateAndBranchId(request.getTransDate(), request.getBranchId());
         for(HeaderPayment hp  : headerPayments){
             String pmName = paymentMethodRepository.getPaymentMethodByPmId(hp.getPmId());
