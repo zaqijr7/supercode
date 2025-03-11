@@ -11,6 +11,8 @@ import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.Query;
 
 import java.math.BigDecimal;
+import java.time.DayOfWeek;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -40,54 +42,87 @@ public class BankMutationRepository implements PanacheRepository<BankMutation> {
         return ((Number) result).intValue();
     }
 
-    public List<BigDecimal> getAmontBank(GeneralRequest request, String payMeth) {
-        String notesLike ="";
-        if(payMeth.equalsIgnoreCase(MessageConstant.GRABFOOD)){
-            notesLike = "ATMB";
+    public List<BigDecimal> getAmountBank(GeneralRequest request, String payMeth) {
+        String notesLike = "";
+        LocalDate settlementDate = LocalDate.parse(request.getTransDate()); // Konversi String ke LocalDate
+        LocalDate settlementDateNew = settlementDate;
+        if (payMeth.equalsIgnoreCase(MessageConstant.GRABFOOD)) {
+            notesLike = "atmb"; // Ubah ke lowercase
+        } else if (payMeth.equalsIgnoreCase(MessageConstant.GOFOOD) || payMeth.equalsIgnoreCase(MessageConstant.GOPAY)) {
+            notesLike = "dompet anak bangsa"; // Ubah ke lowercase
+            DayOfWeek dayOfWeek = settlementDate.getDayOfWeek();
+
+            switch (dayOfWeek) {
+                case MONDAY, TUESDAY, WEDNESDAY, THURSDAY, SUNDAY -> settlementDateNew = settlementDate.plusDays(1);
+                case FRIDAY -> settlementDateNew = settlementDate.plusDays(3);
+                case SATURDAY -> settlementDateNew = settlementDate.plusDays(2);
+                default -> {} // Tidak ada perubahan
+            }
+
         }
-        String query ="SELECT DISTINCT bm.amount \n" +
+
+        String query = "SELECT DISTINCT bm.amount \n" +
                 "    FROM bank_mutation bm \n" +
                 "    JOIN payment_method pm \n" +
                 "        ON pm.bank_disburse = bm.bank \n" +
                 "        AND pm.bank_acc_no = bm.account_no \n" +
-                "    WHERE trans_date = ?1 and debit_credit = 'Credit' and notes like '%"+notesLike+"%'";
-        Query nativeQuery = entityManager.createNativeQuery(
-                        query)
-                .setParameter(1, request.getTransDate());
+                "    WHERE trans_date = ?1 and debit_credit = 'Credit' and LOWER(notes) LIKE LOWER(?2)";
+        Query nativeQuery = entityManager.createNativeQuery(query)
+                .setParameter(1, settlementDateNew.toString())
+                .setParameter(2, "%" + notesLike + "%");
 
-
-        List<BigDecimal> result = nativeQuery.getResultList();
-        return result;
+        return nativeQuery.getResultList();
     }
 
 
+
     public List<Map<String, Object>> getDataBank(GeneralRequest request, String payMeth) {
-        String notesLike ="";
-        if(payMeth.equalsIgnoreCase(MessageConstant.GRABFOOD)){
-            notesLike = "ATMB";
+        String notesLike = "";
+        LocalDate settlementDate = LocalDate.parse(request.getTransDate()); // Konversi String ke LocalDate
+        LocalDate settlementDateNew = settlementDate; // Default sama
+        if (payMeth.equalsIgnoreCase(MessageConstant.GRABFOOD)) {
+            notesLike = "atmb"; // Konversi ke lowercase
+        } else if (payMeth.equalsIgnoreCase(MessageConstant.GOFOOD)
+        || payMeth.equalsIgnoreCase(MessageConstant.GOPAY)) {
+            notesLike = "dompet anak bangsa"; // Konversi ke lowercase
+
+            DayOfWeek dayOfWeek = settlementDate.getDayOfWeek();
+
+            switch (dayOfWeek) {
+                case MONDAY, TUESDAY, WEDNESDAY, THURSDAY, SUNDAY -> settlementDateNew = settlementDate.plusDays(1);
+                case FRIDAY -> settlementDateNew = settlementDate.plusDays(3);
+                case SATURDAY -> settlementDateNew = settlementDate.plusDays(2);
+                default -> {} // Tidak ada perubahan
+            }
+
         }
+
         String query = "SELECT DISTINCT bm.amount, bm.bank_mutation_id " +
                 "FROM bank_mutation bm " +
                 "JOIN payment_method pm " +
                 "ON pm.bank_disburse = bm.bank " +
                 "AND pm.bank_acc_no = bm.account_no " +
-                "WHERE trans_date = ?1 and bank_mutation_id not in(select flag_id_bank from detail_agregator_payment) " +
-                " and notes like '%"+notesLike+"%'  order by bm.bank_mutation_id  asc";
+                "WHERE trans_date = ?1 " +
+                "AND bank_mutation_id NOT IN (SELECT flag_id_bank FROM detail_agregator_payment) " +
+                "AND LOWER(notes) LIKE LOWER(?2) " +
+                "ORDER BY bm.bank_mutation_id ASC";
 
         Query nativeQuery = entityManager.createNativeQuery(query)
-                .setParameter(1, request.getTransDate());
-
+                .setParameter(1, settlementDateNew.toString())
+                .setParameter(2, "%" + notesLike + "%"); // Menggunakan parameter binding untuk keamanan
+        System.out.println(query);
         List<Object[]> rawResults = nativeQuery.getResultList();
         List<Map<String, Object>> resultList = new ArrayList<>();
 
         for (Object[] row : rawResults) {
             Map<String, Object> map = new HashMap<>();
-            map.put("netAmount", row[0]);  // Assuming amount is in the first column
-            map.put("bankMutationId", row[1]);  // Assuming bank_mutation_id is in the second column
+            map.put("netAmount", row[0]);  // amount ada di index 0
+            map.put("bankMutationId", row[1]);  // bank_mutation_id ada di index 1
             resultList.add(map);
         }
 
         return resultList;
     }
+
 
 }

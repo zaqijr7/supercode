@@ -9,6 +9,8 @@ import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.Query;
 
 import java.math.BigDecimal;
+import java.time.DayOfWeek;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -441,12 +443,14 @@ public class DetailPaymentAggregatorRepository implements PanacheRepository<com.
         nativeQuery.executeUpdate();
     }
 
-    public List<Map<String, Object>> getDataAgg(GeneralRequest request, List<BigDecimal> netAmountBank) {
-        String query ="select detail_payment_id, net_amount from detail_agregator_payment dpos " +
-                "where settlement_date = ?1 and flag_rekon_bank='0' and net_amount in(?2) and pm_id = ?3";
-        Query nativeQuery = entityManager.createNativeQuery(
-                        query)
-                .setParameter(1, request.getTransDate())
+    public List<Map<String, Object>> getDataAgg(GeneralRequest request, List<BigDecimal> netAmountBank, String payMeth) {
+
+
+        String query = "SELECT detail_payment_id, net_amount FROM detail_agregator_payment dpos " +
+                "WHERE settlement_date = ?1 AND flag_rekon_bank='0' AND net_amount IN (?2) AND pm_id = ?3";
+
+        Query nativeQuery = entityManager.createNativeQuery(query)
+                .setParameter(1, request.getTransDate()) // Set tanggal baru yang sudah dihitung
                 .setParameter(2, netAmountBank)
                 .setParameter(3, request.getPmId());
 

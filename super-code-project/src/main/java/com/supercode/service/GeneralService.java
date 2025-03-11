@@ -430,17 +430,17 @@ public class GeneralService {
 
         List<String> pmIds = headerPaymentRepository.getPaymentMethodByDate(request.getTransDate());
         for(String pmId : pmIds){
-
             request.setPmId(pmId);
             String payMeth = paymentMethodRepository.getPaymentMethodByPmId(pmId);
-            List<BigDecimal> netAmountBank = bankMutationRepository.getAmontBank(request, payMeth);
+            List<BigDecimal> netAmountBank = bankMutationRepository.getAmountBank(request, payMeth);
             List<Map<String, Object>> dataBank = bankMutationRepository.getDataBank(request, payMeth);
-            List<Map<String, Object>> dataAgg = detailPaymentAggregatorRepository.getDataAgg(request, netAmountBank);
+            List<Map<String, Object>> dataAgg = detailPaymentAggregatorRepository.getDataAgg(request, netAmountBank, payMeth);
 
             // Gunakan LinkedList agar bisa menghapus elemen pertama setelah match
             LinkedList<Map<String, Object>> queueBank = new LinkedList<>(dataBank);
 
             for (Map<String, Object> agg : dataAgg) {
+
                 BigDecimal aggAmount = (BigDecimal) agg.get("netAmount");
                 boolean matched = false;
 

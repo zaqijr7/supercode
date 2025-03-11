@@ -10,6 +10,8 @@ public interface MessageConstant {
     String POS ="pos";
     String SHOPEEFOOD ="shopeefood";
     String GRABFOOD="grabfood";
+    String GOFOOD ="gofood";
+    String GOPAY  ="gopay";
     boolean TRUE_VALUE = true;
     boolean FALSE_VALUE = false;
     Integer BAD_REQUEST =400;
