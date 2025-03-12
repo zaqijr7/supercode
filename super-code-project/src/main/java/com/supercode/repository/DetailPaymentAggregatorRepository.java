@@ -9,7 +9,6 @@ import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.Query;
 
 import java.math.BigDecimal;
-import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -444,28 +443,52 @@ public class DetailPaymentAggregatorRepository implements PanacheRepository<com.
     }
 
     public List<Map<String, Object>> getDataAgg(GeneralRequest request, List<BigDecimal> netAmountBank, String payMeth) {
+        boolean isGoPayOrGoFood = payMeth.equalsIgnoreCase(MessageConstant.GOFOOD) ||
+                payMeth.equalsIgnoreCase(MessageConstant.GOPAY);
 
+        // Query SQL
+        String query = "SELECT detail_payment_id, net_amount, settlement_date " +
+                "FROM detail_agregator_payment dpos " +
+                "WHERE settlement_date = ?1 AND flag_rekon_bank='0' AND pm_id = ?2 ";
 
-        String query = "SELECT detail_payment_id, net_amount FROM detail_agregator_payment dpos " +
-                "WHERE settlement_date = ?1 AND flag_rekon_bank='0' AND net_amount IN (?2) AND pm_id = ?3";
+        if (isGoPayOrGoFood) {
+            query += " AND net_amount IN (?3) ";
+        }
 
+        // Buat query native
         Query nativeQuery = entityManager.createNativeQuery(query)
-                .setParameter(1, request.getTransDate()) // Set tanggal baru yang sudah dihitung
-                .setParameter(2, netAmountBank)
-                .setParameter(3, request.getPmId());
+                .setParameter(1, request.getTransDate())
+                .setParameter(2, request.getPmId());
 
+        if (isGoPayOrGoFood) {
+            nativeQuery.setParameter(3, netAmountBank);
+        }
+
+        // Eksekusi query
         List<Object[]> rawResults = nativeQuery.getResultList();
-        List<Map<String, Object>> resultList = new ArrayList<>();
 
-        for (Object[] row : rawResults) {
+        return rawResults.stream().map(row -> {
             Map<String, Object> map = new HashMap<>();
             map.put("detailPaymentId", row[0]);
             map.put("netAmount", row[1]);
-            resultList.add(map);
-        }
 
-        return resultList;
+            // Konversi tanggal dengan memastikan hanya mengambil bagian "yyyy-MM-dd"
+            LocalDate settlementDate = LocalDate.parse(row[2].toString().substring(0, 10));
+
+            // Hitung settlement date baru jika GoFood atau GoPay
+            if (isGoPayOrGoFood) {
+                settlementDate = switch (settlementDate.getDayOfWeek()) {
+                    case FRIDAY -> settlementDate.plusDays(3);
+                    case SATURDAY -> settlementDate.plusDays(2);
+                    default -> settlementDate.plusDays(1);
+                };
+            }
+
+            map.put("settDate", settlementDate.toString());
+            return map;
+        }).collect(Collectors.toList());
     }
+
 
     public void updateDataReconAgg2Bank(Long paymentId, String bankMutationId) {
         String query ="update detail_agregator_payment set flag_rekon_bank ='1', flag_id_bank= ?1 " +
@@ -510,5 +533,39 @@ public class DetailPaymentAggregatorRepository implements PanacheRepository<com.
         }
 
         return resultList;
+    }
+
+    public List<Map<String, Object>> getDataAggGoTo(GeneralRequest request, String payMeth) {
+        System.out.println("transdate mau agg "+ request.getTransDate());
+        String query = "SELECT detail_payment_id, net_amount, settlement_date " +
+                "FROM detail_agregator_payment dpos " +
+                "WHERE trans_date = ?1 AND flag_rekon_bank='0' AND pm_id = ?2 ";
+        // Buat query native
+        Query nativeQuery = entityManager.createNativeQuery(query)
+                .setParameter(1, request.getTransDate())
+                .setParameter(2, request.getPmId());
+
+        // Eksekusi query
+        List<Object[]> rawResults = nativeQuery.getResultList();
+
+        return rawResults.stream().map(row -> {
+            Map<String, Object> map = new HashMap<>();
+            map.put("detailPaymentId", row[0]);
+            map.put("netAmount", row[1]);
+
+            LocalDate settlementDate = LocalDate.parse(row[2].toString().substring(0, 10));
+            if(payMeth.equalsIgnoreCase(MessageConstant.SHOPEEFOOD)){
+                settlementDate = settlementDate.plusDays(1);
+            }else{
+                settlementDate = switch (settlementDate.getDayOfWeek()) {
+                    case FRIDAY -> settlementDate.plusDays(3);
+                    case SATURDAY -> settlementDate.plusDays(2);
+                    default -> settlementDate.plusDays(1);
+                };
+            }
+
+            map.put("settDate", settlementDate.toString());
+            return map;
+        }).collect(Collectors.toList());
     }
 }

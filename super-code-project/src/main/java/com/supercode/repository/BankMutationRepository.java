@@ -9,6 +9,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.Query;
+import org.hibernate.event.spi.SaveOrUpdateEvent;
 
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
@@ -78,25 +79,18 @@ public class BankMutationRepository implements PanacheRepository<BankMutation> {
 
     public List<Map<String, Object>> getDataBank(GeneralRequest request, String payMeth) {
         String notesLike = "";
-        LocalDate settlementDate = LocalDate.parse(request.getTransDate()); // Konversi String ke LocalDate
-        LocalDate settlementDateNew = settlementDate; // Default sama
+        LocalDate settlementDateNew = LocalDate.parse(request.getTransDate());
+        System.out.println("ini transdate "+ request.getTransDate());
         if (payMeth.equalsIgnoreCase(MessageConstant.GRABFOOD)) {
             notesLike = "atmb"; // Konversi ke lowercase
         } else if (payMeth.equalsIgnoreCase(MessageConstant.GOFOOD)
         || payMeth.equalsIgnoreCase(MessageConstant.GOPAY)) {
             notesLike = "dompet anak bangsa"; // Konversi ke lowercase
 
-            DayOfWeek dayOfWeek = settlementDate.getDayOfWeek();
-
-            switch (dayOfWeek) {
-                case MONDAY, TUESDAY, WEDNESDAY, THURSDAY, SUNDAY -> settlementDateNew = settlementDate.plusDays(1);
-                case FRIDAY -> settlementDateNew = settlementDate.plusDays(3);
-                case SATURDAY -> settlementDateNew = settlementDate.plusDays(2);
-                default -> {} // Tidak ada perubahan
-            }
-
+        }else if(payMeth.equalsIgnoreCase(MessageConstant.SHOPEEFOOD)){
+            System.out.println("ini request "+ request.getTransDate());
+            notesLike="AIRPAY";
         }
-
         String query = "SELECT DISTINCT bm.amount, bm.bank_mutation_id " +
                 "FROM bank_mutation bm " +
                 "JOIN payment_method pm " +
@@ -109,15 +103,14 @@ public class BankMutationRepository implements PanacheRepository<BankMutation> {
 
         Query nativeQuery = entityManager.createNativeQuery(query)
                 .setParameter(1, settlementDateNew.toString())
-                .setParameter(2, "%" + notesLike + "%"); // Menggunakan parameter binding untuk keamanan
-        System.out.println(query);
+                .setParameter(2, "%" + notesLike + "%");
         List<Object[]> rawResults = nativeQuery.getResultList();
         List<Map<String, Object>> resultList = new ArrayList<>();
-
         for (Object[] row : rawResults) {
             Map<String, Object> map = new HashMap<>();
             map.put("netAmount", row[0]);  // amount ada di index 0
-            map.put("bankMutationId", row[1]);  // bank_mutation_id ada di index 1
+            map.put("bankMutationId", row[1]);
+            map.put("settDate", settlementDateNew.toString());// bank_mutation_id ada di index 1
             resultList.add(map);
         }
 

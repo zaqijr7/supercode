@@ -21,6 +21,7 @@ import java.io.InputStream;
 import java.math.BigDecimal;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
 import java.util.*;
 
 @ApplicationScoped
@@ -426,47 +427,98 @@ public class GeneralService {
         }
     }*/
 
+    // from git
     public void reconBankAggregator(GeneralRequest request) {
-
         List<String> pmIds = headerPaymentRepository.getPaymentMethodByDate(request.getTransDate());
         for(String pmId : pmIds){
             request.setPmId(pmId);
             String payMeth = paymentMethodRepository.getPaymentMethodByPmId(pmId);
-            List<BigDecimal> netAmountBank = bankMutationRepository.getAmountBank(request, payMeth);
-            List<Map<String, Object>> dataBank = bankMutationRepository.getDataBank(request, payMeth);
-            List<Map<String, Object>> dataAgg = detailPaymentAggregatorRepository.getDataAgg(request, netAmountBank, payMeth);
+            if(payMeth.equalsIgnoreCase(MessageConstant.GOPAY) || payMeth.equalsIgnoreCase(MessageConstant.GOFOOD) || payMeth.equalsIgnoreCase(MessageConstant.SHOPEEFOOD)){
+                reconBankAggregatorForGoTo(request);
+            }else{
+                /*List<BigDecimal> netAmountBank = bankMutationRepository.getAmountBank(request, payMeth);
+                List<Map<String, Object>> dataBank = bankMutationRepository.getDataBank(request, payMeth);
+                List<Map<String, Object>> dataAgg = detailPaymentAggregatorRepository.getDataAgg(request, netAmountBank, payMeth);
 
-            // Gunakan LinkedList agar bisa menghapus elemen pertama setelah match
-            LinkedList<Map<String, Object>> queueBank = new LinkedList<>(dataBank);
+                // Gunakan LinkedList agar bisa menghapus elemen pertama setelah match
+                LinkedList<Map<String, Object>> queueBank = new LinkedList<>(dataBank);
 
-            for (Map<String, Object> agg : dataAgg) {
+                for (Map<String, Object> agg : dataAgg) {
 
-                BigDecimal aggAmount = (BigDecimal) agg.get("netAmount");
-                boolean matched = false;
+                    BigDecimal aggAmount = (BigDecimal) agg.get("netAmount");
+                    boolean matched = false;
 
+                    Iterator<Map<String, Object>> iterator = queueBank.iterator();
+                    while (iterator.hasNext()) {
+                        Map<String, Object> bank = iterator.next();
+                        BigDecimal bankAmount = (BigDecimal) bank.get("netAmount");
+
+                        if (aggAmount.compareTo(bankAmount) == 0) {
+                            // Cocok, lakukan update
+                            detailPaymentAggregatorRepository.updateDataReconAgg2Bank(
+                                    (Long) agg.get("detailPaymentId"),
+                                    bank.get("bankMutationId").toString()
+                            );
+
+                            // Hapus dari queueBank agar tidak digunakan dua kali
+                            iterator.remove();
+                            matched = true;
+                            break; // Stop iterasi setelah menemukan pasangan pertama
+                        }
+                    }
+
+                    if (!matched) {
+                        System.out.println("❌ Tidak ada pasangan untuk transaksi di dataAgg: " + agg.get("detailPaymentId"));
+                    }
+                }*/
+            }
+
+        }
+    }
+
+    public void reconBankAggregatorForGoTo(GeneralRequest request) {
+
+        List<String> pmIds = headerPaymentRepository.getPaymentMethodByDate(request.getTransDate());
+        String transDate = request.getTransDate();
+        for(String pmId : pmIds){
+            request.setTransDate(transDate);
+            request.setPmId(pmId);
+            String payMeth = paymentMethodRepository.getPaymentMethodByPmId(pmId);
+            List<Map<String, Object>> dataAgg = detailPaymentAggregatorRepository.getDataAggGoTo(request, payMeth);
+//            request.setTransDate(settlementDate.toString());
+            for (Map<String, Object> agg2 : dataAgg) {
+                request.setTransDate(agg2.get("settDate").toString());
+                List<Map<String, Object>> dataBank = bankMutationRepository.getDataBank(request, payMeth);
+                BigDecimal aggAmountGofood = BigDecimal.ZERO;
+                LinkedList<Map<String, Object>> queueBank = new LinkedList<>(dataBank);
+                System.out.println("ini data bank "+ dataBank.size());
                 Iterator<Map<String, Object>> iterator = queueBank.iterator();
                 while (iterator.hasNext()) {
+
                     Map<String, Object> bank = iterator.next();
                     BigDecimal bankAmount = (BigDecimal) bank.get("netAmount");
 
-                    if (aggAmount.compareTo(bankAmount) == 0) {
-                        // Cocok, lakukan update
-                        detailPaymentAggregatorRepository.updateDataReconAgg2Bank(
-                                (Long) agg.get("detailPaymentId"),
-                                bank.get("bankMutationId").toString()
-                        );
+                    for (Map<String, Object> agg : dataAgg) {
+                        if(agg.get("settDate").toString().equalsIgnoreCase(bank.get("settDate").toString())){
+                            System.out.println("masuk sini");
+                            aggAmountGofood =aggAmountGofood.add((BigDecimal)agg.get("netAmount"));
+                        }
 
-                        // Hapus dari queueBank agar tidak digunakan dua kali
-                        iterator.remove();
-                        matched = true;
-                        break; // Stop iterasi setelah menemukan pasangan pertama
+                    }
+
+                    if (aggAmountGofood.compareTo(bankAmount) == 0) {
+                        // Cocok, lakukan update
+                        for (Map<String, Object> agg : dataAgg) {
+                            detailPaymentAggregatorRepository.updateDataReconAgg2Bank(
+                                    (Long) agg.get("detailPaymentId"),
+                                    bank.get("bankMutationId").toString()
+                            );
+                        }
+                        break;
                     }
                 }
-
-                if (!matched) {
-                    System.out.println("❌ Tidak ada pasangan untuk transaksi di dataAgg: " + agg.get("detailPaymentId"));
-                }
             }
+
         }
     }
 
