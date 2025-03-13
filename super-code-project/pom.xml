@@ -19,6 +19,7 @@
         <quarkus.platform.version>3.18.3</quarkus.platform.version>
         <skipITs>true</skipITs>
         <surefire-plugin.version>3.5.2</surefire-plugin.version>
+        <quarkus.package.type>uber-jar</quarkus.package.type> <!-- Untuk menghasilkan standalone JAR -->
     </properties>
 
     <dependencyManagement>
@@ -100,11 +101,11 @@
             <artifactId>resteasy-json-binding-provider</artifactId>
             <version>6.2.3.Final</version>
         </dependency>
-
     </dependencies>
 
     <build>
         <plugins>
+            <!-- Quarkus Maven Plugin -->
             <plugin>
                 <groupId>${quarkus.platform.group-id}</groupId>
                 <artifactId>quarkus-maven-plugin</artifactId>
@@ -116,28 +117,32 @@
                             <goal>build</goal>
                             <goal>generate-code</goal>
                             <goal>generate-code-tests</goal>
-                            <goal>native-image-agent</goal>
                         </goals>
                     </execution>
                 </executions>
             </plugin>
+
+            <!-- Compiler Plugin -->
             <plugin>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>${compiler-plugin.version}</version>
                 <configuration>
-                    <parameters>true</parameters>
+                    <release>${maven.compiler.release}</release>
                 </configuration>
             </plugin>
+
+            <!-- Surefire Plugin (for unit tests) -->
             <plugin>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>${surefire-plugin.version}</version>
                 <configuration>
                     <systemPropertyVariables>
                         <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>
-                        <maven.home>${maven.home}</maven.home>
                     </systemPropertyVariables>
                 </configuration>
             </plugin>
+
+            <!-- Failsafe Plugin (for integration tests) -->
             <plugin>
                 <artifactId>maven-failsafe-plugin</artifactId>
                 <version>${surefire-plugin.version}</version>
@@ -149,18 +154,12 @@
                         </goals>
                     </execution>
                 </executions>
-                <configuration>
-                    <systemPropertyVariables>
-                        <native.image.path>${project.build.directory}/${project.build.finalName}-runner</native.image.path>
-                        <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>
-                        <maven.home>${maven.home}</maven.home>
-                    </systemPropertyVariables>
-                </configuration>
             </plugin>
         </plugins>
     </build>
 
     <profiles>
+        <!-- Native Image Profile -->
         <profile>
             <id>native</id>
             <activation>
