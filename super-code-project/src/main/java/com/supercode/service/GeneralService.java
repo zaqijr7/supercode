@@ -21,7 +21,6 @@ import java.io.InputStream;
 import java.math.BigDecimal;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
-import java.time.LocalDate;
 import java.util.*;
 
 @ApplicationScoped
@@ -48,7 +47,7 @@ public class GeneralService {
 
 
 
-    public String saveHeaderPayment(MultipartFormDataInput file, String paymentWay, String pmId) {
+    public String saveHeaderPayment(MultipartFormDataInput file, String paymentWay, String pmId, String branchId) {
         String parentId = generateRandomCode();
         Map<String, List<InputPart>> formDataMap = file.getFormDataMap();
         List<InputPart> fileParts = formDataMap.get("file");
@@ -63,6 +62,7 @@ public class GeneralService {
         InputPart filePart = fileParts.get(0);
         headerPayment.setFileName(getFileName(filePart));
         headerPayment.setParentId(parentId);
+        headerPayment.setBranchId(branchId);
         headerPaymentRepository.persist(headerPayment);
         return parentId;
 
