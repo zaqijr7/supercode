@@ -102,6 +102,7 @@ public class TransactionService {
                 transactionList.setPaymentId(headerPayment.getPmId());
                 transactionList.setTransactionSource(transactionSource);
                 transactionList.setAmount(amount);
+                transactionList.setCreatedAt(headerPayment.getCreatedAt());
                 transactionList.setStatusRecon(statusRecon);
                 transactionLists.add(transactionList);
             }

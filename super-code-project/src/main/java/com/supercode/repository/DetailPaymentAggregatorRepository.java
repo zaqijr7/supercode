@@ -170,7 +170,7 @@ public class DetailPaymentAggregatorRepository implements PanacheRepository<com.
     public String getTransDateByParentId(String parentId) {
         return entityManager.createNativeQuery(
                         "select distinct trans_date from detail_agregator_payment " +
-                                "where parent_id = ?1 ")
+                                "where parent_id = ?1 order by created_at desc limit 1")
                 .setParameter(1, parentId)
                 .getSingleResult().toString();
     }

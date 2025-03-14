@@ -21,6 +21,8 @@ import java.io.InputStream;
 import java.math.BigDecimal;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.*;
 
 @ApplicationScoped
@@ -43,6 +45,9 @@ public class GeneralService {
 
     @Inject
     LogReconRepository logReconRepository;
+
+    @Inject
+    MasterMerchantRepository masterMerchantRepository;
 
 
 
@@ -84,25 +89,27 @@ public class GeneralService {
         return "unknown_file";
     }
 
-    public void saveDetailPayment(MultipartFormDataInput file, String paymentType, String parentId, String pmId) {
+    public void saveDetailPayment(MultipartFormDataInput file, String paymentType, String parentId, String pmId, String branchId) {
         try {
             if (paymentType.equalsIgnoreCase(MessageConstant.POS)) {
                 saveDetailPos(file, parentId);
             } else {
                 String paymentMethod = paymentMethodRepository.getPaymentMethodByPmId(pmId);
                 if (paymentMethod.equalsIgnoreCase(MessageConstant.SHOPEEFOOD)) {
-                    saveDetailShopeeFood(file, pmId, parentId);
+                    saveDetailShopeeFood(file, pmId, parentId, branchId);
                 }
-                /*else if(paymentMethod.equalsIgnoreCase(MessageConstant.GRABFOOD)){
-                    saveDetailGrabFood(file, pmId, branchId);
-                }*/
+                else if(paymentMethod.equalsIgnoreCase(MessageConstant.GRABFOOD)){
+                    saveDetailGrabFood(file, pmId, branchId, parentId);
+                }else if(paymentMethod.equalsIgnoreCase(MessageConstant.GOFOOD)){
+                    saveDetailGoFood(file, pmId, branchId, parentId);
+                }
             }
         } catch (Exception e) {
 
         }
     }
 
-    private void saveDetailGrabFood(MultipartFormDataInput file, String pmId, String branchId) {
+    private void saveDetailGrabFood(MultipartFormDataInput file, String pmId, String branchId, String parentId) {
         try {
             InputPart inputPart = getInputPart(file);
             try (InputStream inputStream = inputPart.getBody(InputStream.class, null);
@@ -111,31 +118,33 @@ public class GeneralService {
                 Sheet sheet = workbook.getSheetAt(0);
                 for (Row row : sheet) {
                     if (row.getRowNum() == 0) continue;
-                    String transId = row.getCell(1).getStringCellValue();
-                    Cell timeTransCell = row.getCell(2);
+                    String transId = row.getCell(9).getStringCellValue();
+                    Cell timeTransCell = row.getCell(5);
                     String formattedTimeDate = getDate(timeTransCell);
 
-                    Cell timeCell = row.getCell(2);
+                    Cell timeCell = row.getCell(5);
                     String formattedTime = getTime(timeCell);
+                    String branchID = masterMerchantRepository.getBranchIdByBranchName(row.getCell(2).getStringCellValue());
+                    if(!branchID.equals(branchId)){
+                        continue;
+                    }
 
-
-                    Cell grossAmountCell = row.getCell(3);
+                    Cell grossAmountCell = row.getCell(51);
                     BigDecimal grossAmount = null;
                     if (grossAmountCell.getCellType() == CellType.NUMERIC) {
                         grossAmount = BigDecimal.valueOf(grossAmountCell.getNumericCellValue());
                     } else if (grossAmountCell.getCellType() == CellType.STRING) {
                         grossAmount = new BigDecimal(grossAmountCell.getStringCellValue());
                     }
-                    Cell nettAmountCell = row.getCell(2);
+                    Cell nettAmountCell = row.getCell(39);
                     BigDecimal nettAmount = null;
                     if (nettAmountCell.getCellType() == CellType.NUMERIC) {
                         nettAmount = BigDecimal.valueOf(nettAmountCell.getNumericCellValue());
                     } else if (nettAmountCell.getCellType() == CellType.STRING) {
                         nettAmount = new BigDecimal(nettAmountCell.getStringCellValue());
                     }
-
                     DetailPaymentAggregator dpa = new DetailPaymentAggregator();
-                    dpa.setBranchId(branchId);
+                    dpa.setBranchId(branchID);
                     dpa.setPmId(pmId);
                     dpa.setTransDate(formattedTimeDate);
                     dpa.setTransId(transId);
@@ -146,8 +155,11 @@ public class GeneralService {
                     dpa.setPaymentId(dpa.getTransId() + dpa.getPmId());
                     dpa.setSettlementDate(formattedTimeDate);
                     dpa.setSettlementTime(formattedTime);
+                    dpa.setParentId(parentId);
                     detailPaymentAggregatorRepository.persist(dpa);
                 }
+                String getTransDate = detailPaymentAggregatorRepository.getTransDateByParentId(parentId);
+                headerPaymentRepository.updateDate(parentId, getTransDate);
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -177,18 +189,20 @@ public class GeneralService {
                 for (Row row : sheet) {
                     if (row.getRowNum() == 0) continue;
                     if (row == null) break;
-                    Cell pmIdCell = row.getCell(4);
-                    String transId = row.getCell(5).getStringCellValue();
-                    String branchId = row.getCell(0).getStringCellValue();
+                    Cell pmIdCell = row.getCell(18);
+                    String transId = row.getCell(12).getStringCellValue();
+                    String branchName = row.getCell(0).getStringCellValue();
+                    String branchId = masterMerchantRepository.getBranchIdByBranchName(branchName);
                     String pmId = "";
+                    String pmIdString ="";
                     if (pmIdCell.getCellType() == CellType.NUMERIC) {
                         DecimalFormat df = new DecimalFormat("#");
                         pmId = df.format(pmIdCell.getNumericCellValue());
                     } else if (pmIdCell.getCellType() == CellType.STRING) {
                         pmId = pmIdCell.getStringCellValue();
                     }
-
-                    Cell grossAmountCell = row.getCell(3);
+                    pmIdString= paymentMethodRepository.getPaymentIdByPaymentMethod(pmId);
+                    Cell grossAmountCell = row.getCell(10);
                     BigDecimal grossAmount = null;
                     if (grossAmountCell.getCellType() == CellType.NUMERIC) {
                         grossAmount = BigDecimal.valueOf(grossAmountCell.getNumericCellValue());
@@ -201,14 +215,14 @@ public class GeneralService {
                     Cell timeCell = row.getCell(2);
                     String formattedTime = getTime(timeCell);
                     DetailPaymentPos detailPaymentPos = new DetailPaymentPos();
-                    detailPaymentPos.setPmId(pmId);
+                    detailPaymentPos.setPmId("0");
                     detailPaymentPos.setBranchId(branchId);
                     detailPaymentPos.setTransDate(formattedTimeDate);
                     detailPaymentPos.setTransId(transId);
                     detailPaymentPos.setTransTime(formattedTime);
                     detailPaymentPos.setGrossAmount(grossAmount);
                     detailPaymentPos.setParentId(parentId);
-                    detailPaymentPos.setPayMethodAggregator(row.getCell(4).getStringCellValue());
+                    detailPaymentPos.setPayMethodAggregator(pmIdString);
                     posRepository.persist(detailPaymentPos);
                 }
 
@@ -222,7 +236,7 @@ public class GeneralService {
         }
     }
 
-    private void saveDetailShopeeFood(MultipartFormDataInput file, String pmId, String parentId) {
+    private void saveDetailShopeeFood(MultipartFormDataInput file, String pmId, String parentId, String branchId) {
         try {
             InputPart inputPart = getInputPart(file);
             try (InputStream inputStream = inputPart.getBody(InputStream.class, null);
@@ -231,14 +245,19 @@ public class GeneralService {
                 Sheet sheet = workbook.getSheetAt(0);
                 for (Row row : sheet) {
                     if (row.getRowNum() == 0) continue;
-                    String transId = row.getCell(4).getStringCellValue();
-                    Cell timeTransCell = row.getCell(2);
+                    String transId = row.getCell(0).getStringCellValue();
+                    Cell timeTransCell = row.getCell(4);
                     String formattedTimeDate = getDate(timeTransCell);
 
-                    Cell timeCell = row.getCell(3);
-                    String formattedTime = getTime(timeCell);
-                    String branchId = row.getCell(1).getStringCellValue();
+                    Cell timeTransCellSett = row.getCell(17);
+                    String formattedTimeDateSett = getDate(timeTransCellSett);
 
+                    Cell timeCell = row.getCell(4);
+                    String formattedTime = getTime(timeCell);
+                    String branchID = masterMerchantRepository.getBranchIdByBranchName(row.getCell(3).getStringCellValue());
+                    if(!branchID.equals(branchId)){
+                        continue;
+                    }
                     Cell grossAmountCell = row.getCell(5);
                     BigDecimal grossAmount = null;
                     if (grossAmountCell.getCellType() == CellType.NUMERIC) {
@@ -246,7 +265,7 @@ public class GeneralService {
                     } else if (grossAmountCell.getCellType() == CellType.STRING) {
                         grossAmount = new BigDecimal(grossAmountCell.getStringCellValue());
                     }
-                    Cell nettAmountCell = row.getCell(6);
+                    Cell nettAmountCell = row.getCell(13);
                     BigDecimal nettAmount = null;
                     if (nettAmountCell.getCellType() == CellType.NUMERIC) {
                         nettAmount = BigDecimal.valueOf(nettAmountCell.getNumericCellValue());
@@ -255,7 +274,7 @@ public class GeneralService {
                     }
 
                     DetailPaymentAggregator dpa = new DetailPaymentAggregator();
-                    dpa.setBranchId(branchId);
+                    dpa.setBranchId(branchID);
                     dpa.setPmId(pmId);
                     dpa.setTransDate(formattedTimeDate);
                     dpa.setTransId(transId);
@@ -263,8 +282,7 @@ public class GeneralService {
                     dpa.setGrossAmount(grossAmount);
                     dpa.setNetAmount(nettAmount);
                     dpa.setParentId(parentId);
-                    //dpa.setCharge(dpa.getGrossAmount().subtract(dpa.getNetAmount()));
-                    //dpa.setPaymentId(dpa.getTransId()+dpa.getPmId());
+                    dpa.setSettlementDate(formattedTimeDateSett);
                     dpa.setSettlementTime(formattedTime);
                     detailPaymentAggregatorRepository.persist(dpa);
                 }
@@ -278,18 +296,56 @@ public class GeneralService {
     }
 
     private String getDate(Cell timeTransCell) {
-        Date dateTime = timeTransCell.getDateCellValue();
-        SimpleDateFormat timeFormatDate = new SimpleDateFormat("yyyy-MM-dd");
-        String formattedTimeDate = timeFormatDate.format(dateTime);
-        return formattedTimeDate;
+        if (timeTransCell == null) {
+            return null; // Jika sel kosong, return null
+        }
+
+        // Cek apakah cell berisi angka (NUMERIC) & diformat sebagai tanggal
+        if (timeTransCell.getCellType() == CellType.NUMERIC && DateUtil.isCellDateFormatted(timeTransCell)) {
+            Date dateTime = timeTransCell.getDateCellValue();
+            SimpleDateFormat timeFormatDate = new SimpleDateFormat("yyyy-MM-dd");
+            return timeFormatDate.format(dateTime);
+        }
+        // Jika cell bertipe STRING (karena mungkin diisi manual)
+        else if (timeTransCell.getCellType() == CellType.STRING) {
+            return timeTransCell.getStringCellValue().trim(); // Ambil teks langsung
+        }
+        // Jika tipe data lain (BOOLEAN, FORMULA, dll.), return null
+        else {
+            return null;
+        }
     }
 
     private String getTime(Cell timeTransCell) {
-        Date date = timeTransCell.getDateCellValue();
-        SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm:ss");
-        String formattedTime = timeFormat.format(date);
-        return formattedTime;
+        if (timeTransCell == null) {
+            return null; // Jika sel kosong, return null
+        }
+
+        // Jika cell berisi angka (NUMERIC) & diformat sebagai tanggal/waktu
+        if (timeTransCell.getCellType() == CellType.NUMERIC && DateUtil.isCellDateFormatted(timeTransCell)) {
+            Date date = timeTransCell.getDateCellValue();
+            SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm:ss");
+            return timeFormat.format(date);
+        }
+        // Jika cell bertipe STRING (misalnya dalam format "2023-04-18T17:12:59")
+        else if (timeTransCell.getCellType() == CellType.STRING) {
+            String timeString = timeTransCell.getStringCellValue().trim();
+
+            // Coba parsing jika formatnya "2023-04-18T17:12:59"
+            try {
+                LocalDateTime dateTime = LocalDateTime.parse(timeString);
+                return dateTime.toLocalTime().toString(); // Ambil hanya waktu (HH:mm:ss)
+            } catch (DateTimeParseException e) {
+                return null; // Jika format tidak sesuai, return null
+            }
+        }
+        // Jika tipe data lain (BOOLEAN, FORMULA, dll.), return null
+        else {
+            return null;
+        }
     }
+
+
 
     public static String generateRandomCode() {
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyyyMMdd");
@@ -436,7 +492,7 @@ public class GeneralService {
             if(payMeth.equalsIgnoreCase(MessageConstant.GOPAY) || payMeth.equalsIgnoreCase(MessageConstant.GOFOOD) || payMeth.equalsIgnoreCase(MessageConstant.SHOPEEFOOD)){
                 reconBankAggregatorForGoTo(request);
             }else{
-                /*List<BigDecimal> netAmountBank = bankMutationRepository.getAmountBank(request, payMeth);
+                List<BigDecimal> netAmountBank = bankMutationRepository.getAmountBank(request, payMeth);
                 List<Map<String, Object>> dataBank = bankMutationRepository.getDataBank(request, payMeth);
                 List<Map<String, Object>> dataAgg = detailPaymentAggregatorRepository.getDataAgg(request, netAmountBank, payMeth);
 
@@ -461,6 +517,7 @@ public class GeneralService {
                             );
 
                             // Hapus dari queueBank agar tidak digunakan dua kali
+                            bankMutationRepository.updateFlagBank( bank.get("bankMutationId").toString());
                             iterator.remove();
                             matched = true;
                             break; // Stop iterasi setelah menemukan pasangan pertama
@@ -470,7 +527,7 @@ public class GeneralService {
                     if (!matched) {
                         System.out.println("❌ Tidak ada pasangan untuk transaksi di dataAgg: " + agg.get("detailPaymentId"));
                     }
-                }*/
+                }
             }
 
         }
@@ -491,7 +548,6 @@ public class GeneralService {
                 List<Map<String, Object>> dataBank = bankMutationRepository.getDataBank(request, payMeth);
                 BigDecimal aggAmountGofood = BigDecimal.ZERO;
                 LinkedList<Map<String, Object>> queueBank = new LinkedList<>(dataBank);
-                System.out.println("ini data bank "+ dataBank.size());
                 Iterator<Map<String, Object>> iterator = queueBank.iterator();
                 while (iterator.hasNext()) {
 
@@ -500,7 +556,6 @@ public class GeneralService {
 
                     for (Map<String, Object> agg : dataAgg) {
                         if(agg.get("settDate").toString().equalsIgnoreCase(bank.get("settDate").toString())){
-                            System.out.println("masuk sini");
                             aggAmountGofood =aggAmountGofood.add((BigDecimal)agg.get("netAmount"));
                         }
 
@@ -514,6 +569,7 @@ public class GeneralService {
                                     bank.get("bankMutationId").toString()
                             );
                         }
+                        bankMutationRepository.updateFlagBank(bank.get("bankMutationId").toString());
                         break;
                     }
                 }
@@ -614,6 +670,70 @@ public class GeneralService {
                 }
 
             }
+        }
+    }
+
+    private void saveDetailGoFood(MultipartFormDataInput file, String pmId, String branchId, String parentId) {
+        try {
+            InputPart inputPart = getInputPart(file);
+            try (InputStream inputStream = inputPart.getBody(InputStream.class, null);
+                 Workbook workbook = new XSSFWorkbook(inputStream)) {
+
+                Sheet sheet = workbook.getSheetAt(0);
+                for (Row row : sheet) {
+                    if (row.getRowNum() == 0) continue;
+                    String transId = row.getCell(4).getStringCellValue();
+                    Cell timeTransCell = row.getCell(8);
+                    String formattedTimeDate = getDate(timeTransCell);
+
+                    Cell timeSettCell = row.getCell(18);
+                    String formattedTimeSett = getDate(timeSettCell);
+
+                    Cell timeCell = row.getCell(8);
+                    String formattedTime = getTime(timeCell);
+
+                    Cell timeSett = row.getCell(19);
+                    String formattedTimSett = getTime(timeSett);
+                    String branchID = masterMerchantRepository.getBranchIdByBranchName(row.getCell(0).getStringCellValue());
+                    if(!branchID.equals(branchId)){
+                        continue;
+                    }
+
+                    Cell grossAmountCell = row.getCell(5);
+                    BigDecimal grossAmount = null;
+                    if (grossAmountCell.getCellType() == CellType.NUMERIC) {
+                        grossAmount = BigDecimal.valueOf(grossAmountCell.getNumericCellValue());
+                    } else if (grossAmountCell.getCellType() == CellType.STRING) {
+                        grossAmount = new BigDecimal(grossAmountCell.getStringCellValue());
+                    }
+                    Cell nettAmountCell = row.getCell(6);
+                    BigDecimal nettAmount = null;
+                    if (nettAmountCell.getCellType() == CellType.NUMERIC) {
+                        nettAmount = BigDecimal.valueOf(nettAmountCell.getNumericCellValue());
+                    } else if (nettAmountCell.getCellType() == CellType.STRING) {
+                        nettAmount = new BigDecimal(nettAmountCell.getStringCellValue());
+                    }
+
+                    DetailPaymentAggregator dpa = new DetailPaymentAggregator();
+                    dpa.setBranchId(branchID);
+                    dpa.setPmId(pmId);
+                    dpa.setTransDate(formattedTimeDate);
+                    dpa.setTransId(transId);
+                    dpa.setTransTime(formattedTime);
+                    dpa.setGrossAmount(grossAmount);
+                    dpa.setNetAmount(nettAmount);
+                    dpa.setCharge(dpa.getGrossAmount().subtract(dpa.getNetAmount()));
+                    dpa.setPaymentId(dpa.getTransId() + dpa.getPmId());
+                    dpa.setSettlementDate(formattedTimeSett);
+                    dpa.setSettlementTime(formattedTimSett);
+                    dpa.setParentId(parentId);
+                    detailPaymentAggregatorRepository.persist(dpa);
+                }
+                String getTransDate = detailPaymentAggregatorRepository.getTransDateByParentId(parentId);
+                headerPaymentRepository.updateDate(parentId, getTransDate);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 }
