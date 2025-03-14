@@ -6,7 +6,9 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 
+import java.sql.Timestamp;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @ApplicationScoped
 public class HeaderPaymentRepository implements PanacheRepository<HeaderPayment> {
@@ -36,14 +38,40 @@ public class HeaderPaymentRepository implements PanacheRepository<HeaderPayment>
     }
 
     public List<HeaderPayment> getByTransDateAndBranchId(String transDate, String branchId) {
-        String sql = "SELECT hp FROM HeaderPayment hp WHERE hp.transDate = :transDate and hp.branchId = :branchId ";
+        String sql = """
+        WITH Ranked AS (
+            SELECT hp.pm_id, hp.trans_date, hp.status_rekon_pos_vs_ecom, hp.status_rekom_ecom_vs_pos, hp.created_at, hp.parent_id,
+                   ROW_NUMBER() OVER (PARTITION BY hp.pm_id ORDER BY hp.created_at DESC) AS row_num
+            FROM header_payment hp
+            WHERE hp.trans_date = :transDate 
+            AND hp.branch_id = :branchId
+        )
+        SELECT hp.pm_id, hp.trans_date, hp.status_rekon_pos_vs_ecom, hp.status_rekom_ecom_vs_pos, hp.created_at, hp.parent_id
+        FROM Ranked r
+        JOIN header_payment hp ON hp.pm_id = r.pm_id AND hp.created_at = r.created_at
+        WHERE r.row_num = 1
+        ORDER BY hp.created_at DESC;
+    """;
 
-
-        return entityManager.createQuery(sql, HeaderPayment.class)
+        List<Object[]> results = entityManager.createNativeQuery(sql)
                 .setParameter("transDate", transDate)
                 .setParameter("branchId", branchId)
                 .getResultList();
+
+        return results.stream()
+                .map(row -> {
+                    HeaderPayment hp = new HeaderPayment();
+                    hp.setPmId(String.valueOf(row[0])); // pm_id (Long atau Integer)
+                    hp.setTransDate(row[1] != null ? row[1].toString() : null); // trans_date (java.sql.Date → String)
+                    hp.setStatusRekonPosVsEcom(String.valueOf((boolean) row[2])); // status_rekon_pos_vs_ecom
+                    hp.setStatusRekonEcomVsPos(row[1] != null ? row[1].toString() : "0"); // status_rekom_ecom_vs_pos
+                    hp.setCreatedAt(((Timestamp) row[4]).toLocalDateTime());
+                    hp.setParentId((String) row[5]);// created_at (Timestamp)
+                    return hp;
+                })
+                .collect(Collectors.toList());
     }
+
 
     public void updateHeader(String parentId) {
         entityManager.createNativeQuery(

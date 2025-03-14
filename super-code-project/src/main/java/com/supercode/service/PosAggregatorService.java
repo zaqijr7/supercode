@@ -31,7 +31,7 @@ public class PosAggregatorService {
 
 
             // insert to detail
-            generalService.saveDetailPayment(file, paymentType, parentId, pmId);
+            generalService.saveDetailPayment(file, paymentType, parentId, pmId, branchId);
 
             baseResponse = new BaseResponse(MessageConstant.SUCCESS_CODE, MessageConstant.SUCCESS_MESSAGE);
             return Response.status(baseResponse.getResult()).entity(baseResponse).build();

@@ -1,6 +1,7 @@
 package com.supercode.dto;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 
 public class TransactionDTO {
@@ -56,6 +57,7 @@ public class TransactionDTO {
         private BigDecimal amount;
         boolean statusRecon;
         private String paymentId;
+        LocalDateTime createdAt;
 
         public String getTransactionSource() {
             return transactionSource;
@@ -87,6 +89,14 @@ public class TransactionDTO {
 
         public void setPaymentId(String paymentId) {
             this.paymentId = paymentId;
+        }
+
+        public LocalDateTime getCreatedAt() {
+            return createdAt;
+        }
+
+        public void setCreatedAt(LocalDateTime createdAt) {
+            this.createdAt = createdAt;
         }
     }
 }
