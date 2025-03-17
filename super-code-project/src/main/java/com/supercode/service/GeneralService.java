@@ -1,9 +1,6 @@
 package com.supercode.service;
 
-import com.supercode.entity.DetailPaymentAggregator;
-import com.supercode.entity.DetailPaymentPos;
-import com.supercode.entity.HeaderPayment;
-import com.supercode.entity.LogRecon;
+import com.supercode.entity.*;
 import com.supercode.repository.*;
 import com.supercode.request.GeneralRequest;
 import com.supercode.response.BaseResponse;
@@ -49,6 +46,9 @@ public class GeneralService {
     @Inject
     MasterMerchantRepository masterMerchantRepository;
 
+    @Inject
+    BankMutationService bankMutationService;
+
 
 
 
@@ -93,7 +93,10 @@ public class GeneralService {
         try {
             if (paymentType.equalsIgnoreCase(MessageConstant.POS)) {
                 saveDetailPos(file, parentId);
-            } else {
+            }else if(paymentType.equalsIgnoreCase(MessageConstant.BANK)){
+                bankMutationService.saveDetailBank(file, pmId, branchId, parentId);
+            }
+            else {
                 String paymentMethod = paymentMethodRepository.getPaymentMethodByPmId(pmId);
                 if (paymentMethod.equalsIgnoreCase(MessageConstant.SHOPEEFOOD)) {
                     saveDetailShopeeFood(file, pmId, parentId, branchId);
@@ -106,6 +109,89 @@ public class GeneralService {
             }
         } catch (Exception e) {
 
+        }
+    }
+
+    String getFormattedDate(Cell dateCell) {
+        try {
+            if (dateCell.getCellType() == CellType.NUMERIC) {
+                // Jika Excel menyimpan tanggal sebagai nilai numerik
+                Date date = dateCell.getDateCellValue();
+                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd"); // Format yang diinginkan
+                return sdf.format(date);
+            } else if (dateCell.getCellType() == CellType.STRING) {
+                // Jika tanggal dalam format string seperti "30/04/2023 00.00.00"
+                String rawDate = dateCell.getStringCellValue();
+                SimpleDateFormat inputFormat = new SimpleDateFormat("dd/MM/yyyy HH.mm.ss");
+                SimpleDateFormat outputFormat = new SimpleDateFormat("yyyy-MM-dd");
+                Date date = inputFormat.parse(rawDate);
+                return outputFormat.format(date);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    private void saveDetailBank(MultipartFormDataInput file, String pmId, String branchId, String parentId) {
+        try {
+            InputPart inputPart = getInputPart(file);
+            try (InputStream inputStream = inputPart.getBody(InputStream.class, null);
+                 Workbook workbook = new XSSFWorkbook(inputStream)) {
+                String getTransDate = "";
+                Sheet sheet = workbook.getSheetAt(0);
+                for (Row row : sheet) {
+                    if (row.getRowNum() == 0) continue;
+                    Cell timeTransCell = row.getCell(2);
+                    String formattedTimeDate = getFormattedDate(timeTransCell);
+
+                    String accountNo = String.valueOf(row.getCell(0));
+
+                    Cell creditCell = row.getCell(8);
+
+                    String pmName = paymentMethodRepository.getPaymentMethodByPmId(pmId);
+
+                    double creditAmount = 0;
+                    if (creditCell != null) {
+                        if (creditCell.getCellType() == CellType.NUMERIC) {
+                            creditAmount = creditCell.getNumericCellValue();
+                        } else if (creditCell.getCellType() == CellType.STRING) {
+                            String cleanCredit = creditCell.getStringCellValue().replace(",", "").trim();
+                            creditAmount = Double.parseDouble(cleanCredit);
+                        }
+                    }
+                    String debitCredit = creditAmount > 0 ? "Credit" : "Debit";
+
+
+
+                    Cell grossAmountCell = row.getCell(8);
+                    BigDecimal grossAmount = null;
+                    if (grossAmountCell.getCellType() == CellType.NUMERIC) {
+                        grossAmount = BigDecimal.valueOf(grossAmountCell.getNumericCellValue());
+                    } else if (grossAmountCell.getCellType() == CellType.STRING) {
+                        // Menghapus koma sebelum parsing
+                        String cleanAmount = grossAmountCell.getStringCellValue().replace(",", "");
+                        grossAmount = new BigDecimal(cleanAmount);
+                    }
+
+                    String notes = String.valueOf(row.getCell(5));
+
+                    BankMutation bm = new BankMutation();
+                    bm.setBank(pmName);
+                    bm.setAccountNo(accountNo);
+                    bm.setNotes(notes);
+                    bm.setAmount(grossAmount);
+                    bm.setDebitCredit(DebitCredit.valueOf(debitCredit));
+                    bm.setTransDate(formattedTimeDate);
+                    getTransDate=formattedTimeDate;
+                    bankMutationRepository.persist(bm);
+
+                }
+
+                headerPaymentRepository.updateDate(parentId, getTransDate);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
@@ -166,7 +252,7 @@ public class GeneralService {
         }
     }
 
-    private InputPart getInputPart(MultipartFormDataInput file) {
+    InputPart getInputPart(MultipartFormDataInput file) {
         Map<String, List<InputPart>> fileMap = file.getFormDataMap();
 
         List<InputPart> fileParts = fileMap.get("file"); // Sesuaikan key dengan yang dikirim di Postman

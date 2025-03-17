@@ -1,7 +1,9 @@
 package com.supercode.entity;
 
+import com.supercode.util.MessageConstant;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.Date;
 
 @Entity
@@ -9,15 +11,16 @@ import java.util.Date;
 public class BankMutation {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "bank_mutation_id", length = 50, nullable = false)
-    private String bankMutationId;
+    private Long bankMutationId;
 
     @Column(name = "bank", length = 100, nullable = false)
     private String bank;
 
     @Column(name = "trans_date", nullable = false)
     @Temporal(TemporalType.DATE)
-    private Date transDate;
+    private String transDate;
 
     @Column(name = "notes", length = 150)
     private String notes;
@@ -37,8 +40,7 @@ public class BankMutation {
     private Date createdAt;
 
     @Column(name = "created_on", nullable = false)
-    @Temporal(TemporalType.DATE)
-    private Date createdOn;
+    private LocalDateTime createdOn;
 
     @Column(name = "changed_by", length = 50)
     private String changedBy;
@@ -59,11 +61,11 @@ public class BankMutation {
     // toString(), equals(), and hashCode() methods
 
 
-    public String getBankMutationId() {
+    public Long getBankMutationId() {
         return bankMutationId;
     }
 
-    public void setBankMutationId(String bankMutationId) {
+    public void setBankMutationId(Long bankMutationId) {
         this.bankMutationId = bankMutationId;
     }
 
@@ -75,11 +77,11 @@ public class BankMutation {
         this.bank = bank;
     }
 
-    public Date getTransDate() {
+    public String getTransDate() {
         return transDate;
     }
 
-    public void setTransDate(Date transDate) {
+    public void setTransDate(String transDate) {
         this.transDate = transDate;
     }
 
@@ -123,11 +125,11 @@ public class BankMutation {
         this.createdAt = createdAt;
     }
 
-    public Date getCreatedOn() {
+    public LocalDateTime getCreatedOn() {
         return createdOn;
     }
 
-    public void setCreatedOn(Date createdOn) {
+    public void setCreatedOn(LocalDateTime createdOn) {
         this.createdOn = createdOn;
     }
 
@@ -162,9 +164,13 @@ public class BankMutation {
     public void setAccountNo(String accountNo) {
         this.accountNo = accountNo;
     }
-}
 
-enum DebitCredit {
-    Debit, Credit
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = new Date();
+        createdBy= MessageConstant.SYSTEM;
+        createdOn=LocalDateTime.now();
+    }
 }
 
