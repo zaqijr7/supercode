@@ -158,5 +158,94 @@ public class BankMutationService {
         }
         return "";
     }
+
+    public void saveDetailBankBca(MultipartFormDataInput file, String pmId, String branchId, String parentId) {
+        try {
+            InputPart inputPart = generalService.getInputPart(file);
+            MultivaluedMap<String, String> headers = inputPart.getHeaders();
+            String fileName = getFileName(headers);
+
+            try (InputStream inputStream = inputPart.getBody(InputStream.class, null)) {
+                String fileExtension = getFileExtension(fileName);
+
+                if (fileExtension.equalsIgnoreCase("csv")) {
+                    processCSVBca(inputStream, pmId, parentId);
+                } else if (fileExtension.equalsIgnoreCase("xlsx") || fileExtension.equalsIgnoreCase("xls")) {
+                    processExcelBca(inputStream, pmId, parentId);
+                } else {
+                    throw new IllegalArgumentException("Unsupported file format: " + fileExtension);
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void processExcelBca(InputStream inputStream, String pmId, String parentId) throws IOException {
+        try (Workbook workbook = new XSSFWorkbook(inputStream)) {
+            Sheet sheet = workbook.getSheetAt(0);
+            String accountNo = "";
+
+            // Menangkap nomor rekening dari header (asumsi di baris 1 atau 2)
+            for (int i = 0; i < 5; i++) { // Cek di beberapa baris awal
+                Row row = sheet.getRow(i);
+                if (row != null) {
+                    for (Cell cell : row) {
+                        String cellValue = getCellValue(cell);
+                        if (cellValue.replaceAll("[^0-9]", "").length() >= 10) { // Jika mengandung 10+ digit
+                            accountNo = cellValue.replaceAll("[^0-9]", ""); // Ambil hanya angka
+                            break;
+                        }
+                    }
+                }
+                if (!accountNo.isEmpty()) break;
+            }
+
+            // Mulai membaca data transaksi dari baris ke-7 ke bawah (asumsi format BCA)
+            for (Row row : sheet) {
+                if (row.getRowNum() < 7) continue;
+                processRowBca(row, pmId, parentId, accountNo);
+            }
+        }
+    }
+
+        private void processRowBca(Row row, String pmId, String parentId, String accountNo) {
+            try {
+                String notes = getCellValue(row.getCell(1));
+                String formattedTimeDate = generalService.getFormattedDate(row.getCell(0));
+                double creditAmount = getNumericCellValue(row.getCell(4));
+                BigDecimal grossAmount = new BigDecimal(creditAmount);
+                String debitCredit = creditAmount > 0 ? "Credit" : "Debit";
+                String pmName = paymentMethodRepository.getPaymentMethodByPmId(pmId);
+
+                BankMutation bm = new BankMutation();
+                bm.setBank(pmName);
+                bm.setAccountNo(accountNo); // Menggunakan nomor rekening dari header
+                bm.setNotes(notes);
+                bm.setAmount(grossAmount);
+                bm.setDebitCredit(DebitCredit.valueOf(debitCredit));
+                bm.setTransDate(formattedTimeDate);
+
+                bankMutationRepository.persist(bm);
+                headerPaymentRepository.updateDate(parentId, formattedTimeDate);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+
+
+        private void processCSVBca(InputStream inputStream, String pmId, String parentId) throws IOException, CsvValidationException{
+        try (CSVReader reader = new CSVReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8))) {
+            String[] nextLine;
+            boolean isFirstRow = true;
+            while ((nextLine = reader.readNext()) != null) {
+                if (isFirstRow) { // Skip header
+                    isFirstRow = false;
+                    continue;
+                }
+                processRow(nextLine, pmId, parentId);
+            }
+        }
+    }
 }
 

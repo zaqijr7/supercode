@@ -91,13 +91,17 @@ public class GeneralService {
 
     public void saveDetailPayment(MultipartFormDataInput file, String paymentType, String parentId, String pmId, String branchId) {
         try {
+            String paymentMethod = paymentMethodRepository.getPaymentMethodByPmId(pmId);
             if (paymentType.equalsIgnoreCase(MessageConstant.POS)) {
                 saveDetailPos(file, parentId);
             }else if(paymentType.equalsIgnoreCase(MessageConstant.BANK)){
-                bankMutationService.saveDetailBank(file, pmId, branchId, parentId);
+                if(paymentMethod.equalsIgnoreCase("BCA")){
+                    bankMutationService.saveDetailBankBca(file, pmId, branchId, parentId);
+                }else bankMutationService.saveDetailBank(file, pmId, branchId, parentId);
+
             }
             else {
-                String paymentMethod = paymentMethodRepository.getPaymentMethodByPmId(pmId);
+
                 if (paymentMethod.equalsIgnoreCase(MessageConstant.SHOPEEFOOD)) {
                     saveDetailShopeeFood(file, pmId, parentId, branchId);
                 }
