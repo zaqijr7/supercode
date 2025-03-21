@@ -1,5 +1,7 @@
 package com.supercode.service;
 
+import com.opencsv.CSVParserBuilder;
+import com.opencsv.CSVReaderBuilder;
 import com.supercode.entity.BankMutation;
 import com.supercode.entity.DebitCredit;
 import com.supercode.repository.BankMutationRepository;
@@ -18,8 +20,9 @@ import com.supercode.repository.HeaderPaymentRepository;
 import java.io.*;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
-import java.util.List;
-import java.util.Map;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.*;
 
 @ApplicationScoped
 public class BankMutationService {
@@ -115,7 +118,7 @@ public class BankMutationService {
             bm.setNotes(notes);
             bm.setAmount(grossAmount);
             bm.setDebitCredit(DebitCredit.valueOf(debitCredit));
-            bm.setTransDate(formattedTimeDate);
+            bm.setTransDate(java.sql.Date.valueOf(formattedTimeDate));
 
             bankMutationRepository.persist(bm);
             headerPaymentRepository.updateDate(parentId, formattedTimeDate);
@@ -224,7 +227,7 @@ public class BankMutationService {
                 bm.setNotes(notes);
                 bm.setAmount(grossAmount);
                 bm.setDebitCredit(DebitCredit.valueOf(debitCredit));
-                bm.setTransDate(formattedTimeDate);
+                bm.setTransDate(java.sql.Date.valueOf(formattedTimeDate));
 
                 bankMutationRepository.persist(bm);
                 headerPaymentRepository.updateDate(parentId, formattedTimeDate);
@@ -234,18 +237,143 @@ public class BankMutationService {
         }
 
 
-        private void processCSVBca(InputStream inputStream, String pmId, String parentId) throws IOException, CsvValidationException{
-        try (CSVReader reader = new CSVReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8))) {
+    public void processCSVBca(InputStream inputStream, String pmId, String parentId) throws IOException, CsvValidationException {
+        List<String[]> csvData = new ArrayList<>();
+        String accountNo = "";
+        int transactionStartIndex = -1;
+
+        System.out.println("Mulai membaca file CSV...");
+
+        // Baca file CSV dan simpan ke List<String[]>
+        BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8));
+        char delimiter = detectDelimiter(bufferedReader);
+
+        try (CSVReader reader = new CSVReaderBuilder(bufferedReader)
+                .withCSVParser(new CSVParserBuilder().withSeparator(',').build())
+                .build()) {
+
             String[] nextLine;
-            boolean isFirstRow = true;
+            int rowNumber = 0;
+
             while ((nextLine = reader.readNext()) != null) {
-                if (isFirstRow) { // Skip header
-                    isFirstRow = false;
-                    continue;
+                csvData.add(nextLine);
+                rowNumber++;
+
+                System.out.println("Baris " + rowNumber + ": " + String.join(" | ", nextLine));
+
+                // Cari nomor rekening
+                if (accountNo.isEmpty()) {
+                    for (String cell : nextLine) {
+                        if (cell.contains("No. rekening")) {
+
+                            String[] parts = cell.split("[,:|]");
+                            System.out.println(parts[1]);
+                            if (parts.length > 1) {
+                                accountNo = parts[1].trim().replaceAll("[^0-9]", "");
+                                System.out.println("Nomor rekening ditemukan: " + accountNo);
+                            }
+                            break;
+                        }
+                    }
                 }
-                processRow(nextLine, pmId, parentId);
+                // Deteksi awal transaksi berdasarkan header
+                if (transactionStartIndex == -1 && nextLine.length > 2) {
+                    String firstColumn = nextLine[0].trim();
+
+                    if (firstColumn.equalsIgnoreCase("Tanggal Transaksi")) {
+                        transactionStartIndex = rowNumber;
+                    }
+                }
             }
         }
+
+        // Jika header transaksi tidak ditemukan, hentikan
+        if (transactionStartIndex == -1) {
+            System.err.println("Tidak menemukan header transaksi dalam file CSV.");
+            return;
+        }
+
+        for (int i = transactionStartIndex; i < csvData.size(); i++) {
+            String[] row = csvData.get(i);
+            if (row.length == 0) continue;
+
+            String firstColumn = row[0].trim();
+            if (firstColumn.equalsIgnoreCase("Saldo Awal") || firstColumn.equalsIgnoreCase("Mutasi Debet") ||
+                    firstColumn.equalsIgnoreCase("Mutasi Kredit") || firstColumn.equalsIgnoreCase("Saldo Akhir")) {
+                System.out.println("Melewati baris saldo: " + String.join(" | ", row));
+                continue; // Lewati baris yang berisi saldo
+            }
+            processRowCSVBca(row, pmId, parentId, accountNo);
+        }
     }
+
+    private void processRowCSVBca(String[] row, String pmId, String parentId, String accountNo) {
+        try {
+            if (row.length < 5) {
+                System.err.println("Baris transaksi tidak valid: " + String.join(" | ", row));
+                return;
+            }
+
+//            String formattedTimeDate = row[0].trim();
+            String formattedTimeDate = row[0].trim();
+            String notes = row[1].trim();
+            double creditAmount = parseAmount(row[3]);
+            BigDecimal grossAmount = BigDecimal.valueOf(creditAmount);
+            String debitCredit = (creditAmount > 0) ? "Credit" : "Debit";
+            String pmName = "BANK BCA";
+
+            BankMutation bm = new BankMutation();
+            bm.setBank(pmName);
+            bm.setAccountNo(accountNo);
+            bm.setNotes(notes);
+            bm.setAmount(grossAmount);
+            bm.setDebitCredit(DebitCredit.valueOf(debitCredit));
+            String parsedDate = parseDate(formattedTimeDate);
+            bm.setTransDate(java.sql.Date.valueOf(parsedDate));
+           bankMutationRepository.persist(bm);
+            headerPaymentRepository.updateDate(parentId, parsedDate);
+            System.out.println("Data berhasil diproses: " + bm);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private String parseDate(String dateStr) throws ParseException {
+        SimpleDateFormat inputFormat = new SimpleDateFormat("dd-MMM-yyyy");
+        SimpleDateFormat outputFormat = new SimpleDateFormat("yyyy-MM-dd"); // Format respons
+
+        Date date = inputFormat.parse(dateStr);
+        return outputFormat.format(date);
+    }
+
+    private double parseAmount(String amount) {
+        try {
+            amount = amount.replaceAll("[^0-9.,]", "").trim();
+            amount = amount.replace(",", "");
+            return Double.parseDouble(amount);
+        } catch (NumberFormatException e) {
+            System.err.println("Gagal parsing jumlah: " + amount);
+            return 0;
+        }
+    }
+
+
+
+    private char detectDelimiter(BufferedReader br) throws IOException {
+        br.mark(1000);
+        String line = br.readLine();
+        br.reset();
+
+        if (line.contains(";")) {
+            return ';';
+        } else {
+            return ',';
+        }
+    }
+
+
+
+
 }
 

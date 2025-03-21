@@ -19,8 +19,7 @@ public class BankMutation {
     private String bank;
 
     @Column(name = "trans_date", nullable = false)
-    @Temporal(TemporalType.DATE)
-    private String transDate;
+    private Date transDate;
 
     @Column(name = "notes", length = 150)
     private String notes;
@@ -77,11 +76,11 @@ public class BankMutation {
         this.bank = bank;
     }
 
-    public String getTransDate() {
+    public Date getTransDate() {
         return transDate;
     }
 
-    public void setTransDate(String transDate) {
+    public void setTransDate(Date transDate) {
         this.transDate = transDate;
     }
 
