@@ -21,4 +21,5 @@ public interface MessageConstant {
     String ONE_VALUE="1";
     String TWO_VALUE ="2";
     String THREE_VALUE ="3";
+    String BANK ="BANK";
 }

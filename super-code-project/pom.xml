@@ -101,6 +101,11 @@
             <artifactId>resteasy-json-binding-provider</artifactId>
             <version>6.2.3.Final</version>
         </dependency>
+        <dependency>
+            <groupId>com.opencsv</groupId>
+            <artifactId>opencsv</artifactId>
+            <version>5.5.2</version>
+        </dependency>
     </dependencies>
 
     <build>
