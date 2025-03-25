@@ -66,7 +66,6 @@ public class RekonService {
                         }
                         int indexPos = 0;
                         for(Long detailAggStr : detailAgg ){
-                            System.out.println(detailAggStr);
                             detailPaymentAggregatorRepository.updateData(detailAggStr, updatedVersion);
                             posRepository.updateDataPos(detailAggStr, updatedVersion, detailPos.get(indexPos));
                             indexPos++;
@@ -221,8 +220,9 @@ public class RekonService {
         BaseResponse baseResponse;
 
         // save data to submit process
-        generalService.saveDataLog(request);
+
         try {
+            generalService.saveDataLog(request);
             // function 2.1
             generalService.processTransTime(request);
             request.setTransTime(null);
@@ -233,11 +233,12 @@ public class RekonService {
             request.setPmId(null);
             generalService.processWithTransDateAndBranch(request);
 
-            // function 2.3
-            generalService.summaryReconEcom2Pos(request);
+
 
             // function 2.5 recon ecommerce to bank
             generalService.reconBankAggregator(request);
+            // function 2.3
+            generalService.summaryReconEcom2Pos(request);
 
             baseResponse = new BaseResponse(MessageConstant.SUCCESS_CODE,MessageConstant.SUCCESS_MESSAGE);
             return Response.status(baseResponse.result).entity(baseResponse).build();

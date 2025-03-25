@@ -19,8 +19,7 @@ public class BankMutation {
     private String bank;
 
     @Column(name = "trans_date", nullable = false)
-    @Temporal(TemporalType.DATE)
-    private String transDate;
+    private Date transDate;
 
     @Column(name = "notes", length = 150)
     private String notes;
@@ -56,6 +55,9 @@ public class BankMutation {
     @Column(name = "account_no", length = 100)
     private String accountNo;
 
+    @Column(name = "parent_id", length = 100)
+    private String parentId;
+
     // Getters and Setters
     // Constructor (Default & Parameterized)
     // toString(), equals(), and hashCode() methods
@@ -77,11 +79,11 @@ public class BankMutation {
         this.bank = bank;
     }
 
-    public String getTransDate() {
+    public Date getTransDate() {
         return transDate;
     }
 
-    public void setTransDate(String transDate) {
+    public void setTransDate(Date transDate) {
         this.transDate = transDate;
     }
 
@@ -165,6 +167,14 @@ public class BankMutation {
         this.accountNo = accountNo;
     }
 
+
+    public String getParentId() {
+        return parentId;
+    }
+
+    public void setParentId(String parentId) {
+        this.parentId = parentId;
+    }
 
     @PrePersist
     protected void onCreate() {

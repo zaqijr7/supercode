@@ -1,6 +1,10 @@
 package com.supercode.entity;
 
+import com.supercode.util.MessageConstant;
 import jakarta.persistence.*;
+
+import java.time.LocalDateTime;
+import java.util.Date;
 
 @Entity
 @Table(name="log_process_recon")
@@ -13,8 +17,9 @@ public class LogRecon {
     @Column(name = "branch_id", length = 50, nullable = false)
     private String branchId;
 
-    @Column(name = "String", nullable = false)
-    private String String;
+    @Column(name = "date", length = 50, nullable = false)
+    private String date;
+
 
     @Column(name = "submitted_at", nullable = false)
     @Temporal(TemporalType.TIME)
@@ -31,7 +36,7 @@ public class LogRecon {
 
     @Column(name = "created_at", nullable = false, updatable = false)
     @Temporal(TemporalType.TIMESTAMP)
-    private String createdAt;
+    private Date createdAt;
 
     @Column(name = "created_on", nullable = false)
     private String createdOn;
@@ -62,13 +67,7 @@ public class LogRecon {
         this.branchId = branchId;
     }
 
-    public java.lang.String getString() {
-        return String;
-    }
 
-    public void setString(java.lang.String string) {
-        String = string;
-    }
 
     public java.lang.String getSubmittedAt() {
         return submittedAt;
@@ -102,11 +101,11 @@ public class LogRecon {
         this.createdBy = createdBy;
     }
 
-    public java.lang.String getCreatedAt() {
+    public Date getCreatedAt() {
         return createdAt;
     }
 
-    public void setCreatedAt(java.lang.String createdAt) {
+    public void setCreatedAt(Date createdAt) {
         this.createdAt = createdAt;
     }
 
@@ -140,5 +139,20 @@ public class LogRecon {
 
     public void setChangedOn(java.lang.String changedOn) {
         this.changedOn = changedOn;
+    }
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = new Date();
+        createdBy= MessageConstant.SYSTEM;
+        createdOn= "00:00:00";
+    }
+
+    public String getDate() {
+        return date;
+    }
+
+    public void setDate(String date) {
+        this.date = date;
     }
 }

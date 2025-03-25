@@ -64,10 +64,7 @@ public class BankMutationRepository implements PanacheRepository<BankMutation> {
 
         String query = "SELECT DISTINCT bm.amount \n" +
                 "    FROM bank_mutation bm \n" +
-                "    JOIN payment_method pm \n" +
-                "        ON pm.bank_disburse = bm.bank \n" +
-                "        AND pm.bank_acc_no = bm.account_no \n" +
-                "    WHERE trans_date = ?1 and debit_credit = 'Credit' and LOWER(notes) LIKE LOWER(?2)";
+                "    WHERE trans_date = ?1 and debit_credit = 'Credit' and LOWER(notes) LIKE LOWER(?2) and flag_rekon_ecom='0' ";
         Query nativeQuery = entityManager.createNativeQuery(query)
                 .setParameter(1, settlementDateNew.toString())
                 .setParameter(2, "%" + notesLike + "%");
@@ -80,7 +77,6 @@ public class BankMutationRepository implements PanacheRepository<BankMutation> {
     public List<Map<String, Object>> getDataBank(GeneralRequest request, String payMeth) {
         String notesLike = "";
         LocalDate settlementDateNew = LocalDate.parse(request.getTransDate());
-        System.out.println("ini transdate "+ request.getTransDate());
         if (payMeth.equalsIgnoreCase(MessageConstant.GRABFOOD)) {
             notesLike = "atmb"; // Konversi ke lowercase
         } else if (payMeth.equalsIgnoreCase(MessageConstant.GOFOOD)
@@ -88,16 +84,12 @@ public class BankMutationRepository implements PanacheRepository<BankMutation> {
             notesLike = "dompet anak bangsa"; // Konversi ke lowercase
 
         }else if(payMeth.equalsIgnoreCase(MessageConstant.SHOPEEFOOD)){
-            System.out.println("ini request "+ request.getTransDate());
             notesLike="AIRPAY";
         }
         String query = "SELECT DISTINCT bm.amount, bm.bank_mutation_id " +
                 "FROM bank_mutation bm " +
-                "JOIN payment_method pm " +
-                "ON pm.bank_disburse = bm.bank " +
-                "AND pm.bank_acc_no = bm.account_no " +
                 "WHERE trans_date = ?1 " +
-                "AND bank_mutation_id NOT IN (SELECT flag_id_bank FROM detail_agregator_payment) " +
+                "AND bank_mutation_id NOT IN (SELECT flag_id_bank FROM detail_agregator_payment where flag_id_bank !='0') " +
                 "AND LOWER(notes) LIKE LOWER(?2) " +
                 "ORDER BY bm.bank_mutation_id ASC";
 
@@ -122,6 +114,34 @@ public class BankMutationRepository implements PanacheRepository<BankMutation> {
         entityManager.createNativeQuery(
                         "update bank_mutation set flag_rekon_ecom = '1' where bank_mutation_id = ?1")
                 .setParameter(1, bankMutationId)
+                .executeUpdate();
+    }
+
+    public BigDecimal getAmountByParentId(String parentId) {
+        String query ="select sum(amount) from bank_mutation dpos " +
+                "where parent_id = ?1  ";
+
+        Query nativeQuery = entityManager.createNativeQuery(
+                        query)
+                .setParameter(1, parentId);
+        BigDecimal result = (BigDecimal) nativeQuery.getSingleResult();
+        return result;
+    }
+
+    public int getFailedRecon(String parentId) {
+        Object result = entityManager.createNativeQuery(
+                        "select count(*) from  bank_mutation dpos " +
+                                "where parent_id = ?1  and flag_rekon_ecom=0 order by created_at asc")
+                .setParameter(1, parentId)
+                .getSingleResult();
+
+        return ((Number) result).intValue();
+    }
+
+    public void updateHeaderEcom(String parentId) {
+        entityManager.createNativeQuery(
+                        "update bank_mutation set flag_rekon_ecom = '1' where parent_id = ?1")
+                .setParameter(1, parentId)
                 .executeUpdate();
     }
 }

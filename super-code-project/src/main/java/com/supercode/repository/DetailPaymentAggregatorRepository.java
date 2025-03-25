@@ -536,7 +536,6 @@ public class DetailPaymentAggregatorRepository implements PanacheRepository<com.
     }
 
     public List<Map<String, Object>> getDataAggGoTo(GeneralRequest request, String payMeth) {
-        System.out.println("transdate mau agg "+ request.getTransDate());
         String query = "SELECT detail_payment_id, net_amount, settlement_date " +
                 "FROM detail_agregator_payment dpos " +
                 "WHERE trans_date = ?1 AND flag_rekon_bank='0' AND pm_id = ?2 ";

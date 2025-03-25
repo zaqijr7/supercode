@@ -186,7 +186,7 @@ public class GeneralService {
                     bm.setNotes(notes);
                     bm.setAmount(grossAmount);
                     bm.setDebitCredit(DebitCredit.valueOf(debitCredit));
-                    bm.setTransDate(formattedTimeDate);
+//                    bm.setTransDate(formattedTimeDate);
                     getTransDate=formattedTimeDate;
                     bankMutationRepository.persist(bm);
 
@@ -310,6 +310,7 @@ public class GeneralService {
                     detailPaymentPos.setTransDate(formattedTimeDate);
                     detailPaymentPos.setTransId(transId);
                     detailPaymentPos.setTransTime(formattedTime);
+                    System.out.println("detail "+ detailPaymentPos.getTransTime());
                     detailPaymentPos.setGrossAmount(grossAmount);
                     detailPaymentPos.setParentId(parentId);
                     detailPaymentPos.setPayMethodAggregator(pmIdString);
@@ -408,11 +409,12 @@ public class GeneralService {
 
     private String getTime(Cell timeTransCell) {
         if (timeTransCell == null) {
+            System.out.println("apakah masuk sini");
             return null; // Jika sel kosong, return null
         }
 
         // Jika cell berisi angka (NUMERIC) & diformat sebagai tanggal/waktu
-        if (timeTransCell.getCellType() == CellType.NUMERIC && DateUtil.isCellDateFormatted(timeTransCell)) {
+        if (timeTransCell.getCellType() == CellType.NUMERIC) {
             Date date = timeTransCell.getDateCellValue();
             SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm:ss");
             return timeFormat.format(date);
@@ -420,8 +422,6 @@ public class GeneralService {
         // Jika cell bertipe STRING (misalnya dalam format "2023-04-18T17:12:59")
         else if (timeTransCell.getCellType() == CellType.STRING) {
             String timeString = timeTransCell.getStringCellValue().trim();
-
-            // Coba parsing jika formatnya "2023-04-18T17:12:59"
             try {
                 LocalDateTime dateTime = LocalDateTime.parse(timeString);
                 return dateTime.toLocalTime().toString(); // Ambil hanya waktu (HH:mm:ss)
@@ -582,24 +582,28 @@ public class GeneralService {
             if(payMeth.equalsIgnoreCase(MessageConstant.GOPAY) || payMeth.equalsIgnoreCase(MessageConstant.GOFOOD) || payMeth.equalsIgnoreCase(MessageConstant.SHOPEEFOOD)){
                 reconBankAggregatorForGoTo(request);
             }else{
+                System.out.println("masuk sini kah");
                 List<BigDecimal> netAmountBank = bankMutationRepository.getAmountBank(request, payMeth);
                 List<Map<String, Object>> dataBank = bankMutationRepository.getDataBank(request, payMeth);
                 List<Map<String, Object>> dataAgg = detailPaymentAggregatorRepository.getDataAgg(request, netAmountBank, payMeth);
-
+                System.out.println(dataBank.size());
+                System.out.println(dataAgg.size());
                 // Gunakan LinkedList agar bisa menghapus elemen pertama setelah match
                 LinkedList<Map<String, Object>> queueBank = new LinkedList<>(dataBank);
 
                 for (Map<String, Object> agg : dataAgg) {
 
                     BigDecimal aggAmount = (BigDecimal) agg.get("netAmount");
+                    System.out.println("ini agg amount "+ aggAmount);
                     boolean matched = false;
 
                     Iterator<Map<String, Object>> iterator = queueBank.iterator();
                     while (iterator.hasNext()) {
                         Map<String, Object> bank = iterator.next();
                         BigDecimal bankAmount = (BigDecimal) bank.get("netAmount");
-
+                        System.out.println("ini bank amount "+ bankAmount);
                         if (aggAmount.compareTo(bankAmount) == 0) {
+                            System.out.println("cocok "+ bank.get("bankMutationId").toString());
                             // Cocok, lakukan update
                             detailPaymentAggregatorRepository.updateDataReconAgg2Bank(
                                     (Long) agg.get("detailPaymentId"),
@@ -670,25 +674,43 @@ public class GeneralService {
 
 
 
-
-    public Response saveDataLog(GeneralRequest request){
+    @Transactional(Transactional.TxType.REQUIRES_NEW)
+    public Response saveDataLog(GeneralRequest request) {
         BaseResponse baseResponse;
         try {
             LogRecon logRecon = new LogRecon();
+//            logRecon.setLogId(0L);
             logRecon.setBranchId(request.getBranchId());
-            logRecon.setSubmittedAt(request.getTransDate());
-//            logRecon.setSubmittedOn(request.getTransTime());
+            logRecon.setSubmittedAt(getTime(new Date()));
+            logRecon.setDate(request.getTransDate());
+            System.out.println("ini yg mau disimpan "+logRecon );
+            // Add validation if needed
+            if(logRecon.getBranchId() == null) {
+                throw new IllegalArgumentException("Branch ID cannot be null");
+            }
+
+            System.out.println("Saving LogRecon: " + logRecon);
             logReconRepository.persist(logRecon);
-            baseResponse = new BaseResponse(MessageConstant.SUCCESS_CODE,MessageConstant.SUCCESS_MESSAGE);
+            System.out.println("Saved LogRecon ID: " + logRecon.getLogId());
+
+            baseResponse = new BaseResponse(MessageConstant.SUCCESS_CODE, MessageConstant.SUCCESS_MESSAGE);
             return Response.status(baseResponse.result).entity(baseResponse).build();
-        }catch (Exception e){
+        } catch (Exception e) {
+            System.out.println("langsung gagal");
             e.printStackTrace();
-            baseResponse = new BaseResponse(MessageConstant.FAILED_CODE,MessageConstant.FAILED_MESSAGE);
+
+            baseResponse = new BaseResponse(MessageConstant.FAILED_CODE, MessageConstant.FAILED_MESSAGE);
             return Response.status(baseResponse.result)
                     .entity(baseResponse)
                     .build();
         }
     }
+
+    private String getTime(Date transDate) {
+        SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss"); // Format hanya time
+        return sdf.format(transDate);
+    }
+
 
     public void processWithoutTransTime(GeneralRequest request) {
         try {
@@ -753,7 +775,13 @@ public class GeneralService {
                 if(countFailedPos==0){
                     headerPaymentRepository.updateHeader(hp.getParentId());
                 }
-            }else{
+            }else if(pmName.equalsIgnoreCase("Bank BCA") || pmName.equalsIgnoreCase("Bank Mandiri")){
+                int countFailedAggregator= bankMutationRepository.getFailedRecon(hp.getParentId());
+                if(countFailedAggregator==0){
+                    headerPaymentRepository.updateHeaderBank(hp.getParentId());
+                }
+            }
+            else{
                 int countFailedAggregator= detailPaymentAggregatorRepository.getFailedRecon(hp.getParentId());
                 if(countFailedAggregator==0){
                     headerPaymentRepository.updateHeaderEcom(hp.getParentId());
