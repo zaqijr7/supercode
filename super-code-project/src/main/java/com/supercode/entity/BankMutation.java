@@ -55,6 +55,9 @@ public class BankMutation {
     @Column(name = "account_no", length = 100)
     private String accountNo;
 
+    @Column(name = "parent_id", length = 100)
+    private String parentId;
+
     // Getters and Setters
     // Constructor (Default & Parameterized)
     // toString(), equals(), and hashCode() methods
@@ -164,6 +167,14 @@ public class BankMutation {
         this.accountNo = accountNo;
     }
 
+
+    public String getParentId() {
+        return parentId;
+    }
+
+    public void setParentId(String parentId) {
+        this.parentId = parentId;
+    }
 
     @PrePersist
     protected void onCreate() {

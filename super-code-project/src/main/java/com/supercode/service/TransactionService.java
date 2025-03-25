@@ -36,6 +36,9 @@ public class TransactionService {
     @Inject
     LogReconRepository logReconRepository;
 
+    @Inject
+    BankMutationRepository bankMutationRepository;
+
     public Response getAllPaymentTransaction() {
         BaseResponse baseResponse;
         try {
@@ -87,12 +90,19 @@ public class TransactionService {
                 String transactionSource = paymentMethodRepository.getPaymentMethodByPmId(headerPayment.getPmId());
                 BigDecimal amount;
                 if(transactionSource.equalsIgnoreCase(MessageConstant.POS)){
-                    if(!headerPayment.getStatusRekonPosVsEcom().equalsIgnoreCase("1")){
+                    if(!headerPayment.getStatusRekonPosVsEcom().equalsIgnoreCase("true")){
                         statusReconAll=MessageConstant.FALSE_VALUE;
                         statusRecon = MessageConstant.FALSE_VALUE;
                     }
                     amount = posRepository.getAmountByParentId(headerPayment.getParentId());
-                }else{
+                }else if(transactionSource.equalsIgnoreCase("BCA") || transactionSource.equalsIgnoreCase("Bank Mandiri")){
+                    if(!headerPayment.getStatusRekonEcomVsBank().equalsIgnoreCase("true")){
+                        statusReconAll=MessageConstant.FALSE_VALUE;
+                        statusRecon = MessageConstant.FALSE_VALUE;
+                    }
+                    amount = bankMutationRepository.getAmountByParentId(headerPayment.getParentId());
+                }
+                else{
                     amount = detailPaymentAggregatorRepository.getAmountByParentId(headerPayment.getParentId());
                     if(!headerPayment.getStatusRekonEcomVsPos().equals("1")){
                         statusReconAll=MessageConstant.FALSE_VALUE;

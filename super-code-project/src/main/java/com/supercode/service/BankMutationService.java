@@ -119,6 +119,7 @@ public class BankMutationService {
             bm.setAmount(grossAmount);
             bm.setDebitCredit(DebitCredit.valueOf(debitCredit));
             bm.setTransDate(java.sql.Date.valueOf(formattedTimeDate));
+            bm.setParentId(parentId);
 
             bankMutationRepository.persist(bm);
             headerPaymentRepository.updateDate(parentId, formattedTimeDate);
@@ -228,7 +229,7 @@ public class BankMutationService {
                 bm.setAmount(grossAmount);
                 bm.setDebitCredit(DebitCredit.valueOf(debitCredit));
                 bm.setTransDate(java.sql.Date.valueOf(formattedTimeDate));
-
+                bm.setParentId(parentId);
                 bankMutationRepository.persist(bm);
                 headerPaymentRepository.updateDate(parentId, formattedTimeDate);
             } catch (Exception e) {
@@ -330,6 +331,7 @@ public class BankMutationService {
             bm.setDebitCredit(DebitCredit.valueOf(debitCredit));
             String parsedDate = parseDate(formattedTimeDate);
             bm.setTransDate(java.sql.Date.valueOf(parsedDate));
+            bm.setParentId(parentId);
            bankMutationRepository.persist(bm);
             headerPaymentRepository.updateDate(parentId, parsedDate);
             System.out.println("Data berhasil diproses: " + bm);
