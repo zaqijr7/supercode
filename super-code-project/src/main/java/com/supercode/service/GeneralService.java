@@ -219,14 +219,14 @@ public class GeneralService {
                         continue;
                     }
 
-                    Cell grossAmountCell = row.getCell(51);
+                    Cell grossAmountCell = row.getCell(39);
                     BigDecimal grossAmount = null;
                     if (grossAmountCell.getCellType() == CellType.NUMERIC) {
                         grossAmount = BigDecimal.valueOf(grossAmountCell.getNumericCellValue());
                     } else if (grossAmountCell.getCellType() == CellType.STRING) {
                         grossAmount = new BigDecimal(grossAmountCell.getStringCellValue());
                     }
-                    Cell nettAmountCell = row.getCell(39);
+                    Cell nettAmountCell = row.getCell(51);
                     BigDecimal nettAmount = null;
                     if (nettAmountCell.getCellType() == CellType.NUMERIC) {
                         nettAmount = BigDecimal.valueOf(nettAmountCell.getNumericCellValue());
@@ -775,7 +775,7 @@ public class GeneralService {
                 if(countFailedPos==0){
                     headerPaymentRepository.updateHeader(hp.getParentId());
                 }
-            }else if(pmName.equalsIgnoreCase("Bank BCA") || pmName.equalsIgnoreCase("Bank Mandiri")){
+            }else if(pmName.equalsIgnoreCase("BCA") || pmName.equalsIgnoreCase("Bank Mandiri")){
                 int countFailedAggregator= bankMutationRepository.getFailedRecon(hp.getParentId());
                 if(countFailedAggregator==0){
                     headerPaymentRepository.updateHeaderBank(hp.getParentId());
