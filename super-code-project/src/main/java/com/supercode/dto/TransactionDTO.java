@@ -58,6 +58,15 @@ public class TransactionDTO {
         boolean statusRecon;
         private String paymentId;
         LocalDateTime createdAt;
+        private String fileName;
+
+        public String getFileName() {
+            return fileName;
+        }
+
+        public void setFileName(String fileName) {
+            this.fileName = fileName;
+        }
 
         public String getTransactionSource() {
             return transactionSource;

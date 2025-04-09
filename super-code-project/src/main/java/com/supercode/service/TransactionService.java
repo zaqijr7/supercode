@@ -114,6 +114,7 @@ public class TransactionService {
                 transactionList.setAmount(amount);
                 transactionList.setCreatedAt(headerPayment.getCreatedAt());
                 transactionList.setStatusRecon(statusRecon);
+                transactionList.setFileName(headerPayment.getFileName());
                 transactionLists.add(transactionList);
             }
             transactionDTO.setSubmitStatus(submitStatus);

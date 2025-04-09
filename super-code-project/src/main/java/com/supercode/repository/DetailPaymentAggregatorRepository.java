@@ -555,6 +555,8 @@ public class DetailPaymentAggregatorRepository implements PanacheRepository<com.
             LocalDate settlementDate = LocalDate.parse(row[2].toString().substring(0, 10));
             if(payMeth.equalsIgnoreCase(MessageConstant.SHOPEEFOOD)){
                 settlementDate = settlementDate.plusDays(1);
+            }else if(payMeth.equalsIgnoreCase(MessageConstant.GRABFOOD)){
+                settlementDate = settlementDate;
             }else{
                 settlementDate = switch (settlementDate.getDayOfWeek()) {
                     case FRIDAY -> settlementDate.plusDays(3);
@@ -566,5 +568,17 @@ public class DetailPaymentAggregatorRepository implements PanacheRepository<com.
             map.put("settDate", settlementDate.toString());
             return map;
         }).collect(Collectors.toList());
+    }
+
+    public BigDecimal getGrossAmountByParentId(String parentId) {
+        String query ="select sum(dap.gross_amount) from detail_agregator_payment dap \n" +
+                "join detail_point_of_sales dpos \n" +
+                "on dap.detail_payment_id = dpos.detail_id_agg and dpos.parent_id = :parentId ";
+
+        Query nativeQuery = entityManager.createNativeQuery(
+                        query)
+                .setParameter("parentId", parentId);
+        BigDecimal result = (BigDecimal) nativeQuery.getSingleResult();
+        return result;
     }
 }
