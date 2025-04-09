@@ -3,9 +3,11 @@ package com.supercode.controller;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.supercode.request.GeneralRequest;
 import com.supercode.request.MyJsonData;
 import com.supercode.response.BaseResponse;
 import com.supercode.service.PosAggregatorService;
+import com.supercode.service.RekonService;
 import com.supercode.util.MessageConstant;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
@@ -25,6 +27,7 @@ public class PosAggregatorController {
 
     @Inject
     PosAggregatorService posAggregatorService;
+
 
     /*
     * upload header for pos
@@ -74,7 +77,4 @@ public class PosAggregatorController {
                     .build();
         }
     }
-
-
-
 }

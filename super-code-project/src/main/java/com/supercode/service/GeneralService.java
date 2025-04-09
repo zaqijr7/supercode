@@ -93,7 +93,8 @@ public class GeneralService {
         try {
             String paymentMethod = paymentMethodRepository.getPaymentMethodByPmId(pmId);
             if (paymentType.equalsIgnoreCase(MessageConstant.POS)) {
-                saveDetailPos(file, parentId);
+//                saveDetailPos(file, parentId);
+                saveDetailDPos(file, parentId);
             }else if(paymentType.equalsIgnoreCase(MessageConstant.BANK)){
                 if(paymentMethod.equalsIgnoreCase("BCA")){
                     bankMutationService.saveDetailBankBca(file, pmId, branchId, parentId);
@@ -114,6 +115,73 @@ public class GeneralService {
         } catch (Exception e) {
 
         }
+    }
+
+    private void saveDetailDPos(MultipartFormDataInput file, String parentId) {
+        try {
+            InputPart inputPart = getInputPart(file);
+            try (InputStream inputStream = inputPart.getBody(InputStream.class, null);
+                 Workbook workbook = new XSSFWorkbook(inputStream)) {
+
+                Sheet sheet = workbook.getSheetAt(0);
+                for (Row row : sheet) {
+                    if (row.getRowNum() < 13) continue; // Lewati header dan metadata rows
+
+                    Cell salesNumberCell = row.getCell(0);
+                    if (salesNumberCell == null || salesNumberCell.getCellType() == CellType.BLANK) continue;
+
+                    String transId = row.getCell(0).getStringCellValue(); // Sales Number sebagai Trans ID
+                    String branchName = row.getCell(8).getStringCellValue(); // Branch
+                    String branchId = masterMerchantRepository.getBranchIdByBranchName(branchName);
+
+                    String formattedDate = getDate(row.getCell(4)); // Sales Date
+                    String formattedTime = getTime(row.getCell(5)); // Sales In Time
+
+                    // Parse gross/net sales
+                    BigDecimal grossSales = parseBigDecimal(row.getCell(27));
+
+                    String payMethod = "";
+                    Cell payMethodCell = row.getCell(12);
+                    if (payMethodCell != null && payMethodCell.getCellType() == CellType.STRING) {
+                        payMethod = payMethodCell.getStringCellValue();
+                    } else if (payMethodCell != null && payMethodCell.getCellType() == CellType.NUMERIC) {
+                        payMethod = String.valueOf((int) payMethodCell.getNumericCellValue());
+                    }
+                    payMethod= paymentMethodRepository.getPaymentIdByPaymentMethod(payMethod);
+                    DetailPaymentPos detailPaymentPos = new DetailPaymentPos();
+                    detailPaymentPos.setPmId("0");
+                    detailPaymentPos.setBranchId(branchId);
+                    detailPaymentPos.setTransDate(formattedDate);
+                    detailPaymentPos.setTransId(transId);
+                    detailPaymentPos.setTransTime(formattedTime);
+                    detailPaymentPos.setGrossAmount(grossSales);
+                    detailPaymentPos.setParentId(parentId);
+                    detailPaymentPos.setPayMethodAggregator(payMethod); // kosong, tidak ada di Excel ini
+
+                    posRepository.persist(detailPaymentPos);
+                }
+
+                // update header payment
+                String getTransDate = posRepository.getTransDateByParentId(parentId);
+                headerPaymentRepository.updateDate(parentId, getTransDate);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private BigDecimal parseBigDecimal(Cell cell) {
+        try {
+            if (cell.getCellType() == CellType.NUMERIC) {
+                return BigDecimal.valueOf(cell.getNumericCellValue());
+            } else if (cell.getCellType() == CellType.STRING) {
+                String raw = cell.getStringCellValue().replace(".", "").replace(",", ".");
+                return new BigDecimal(raw);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return BigDecimal.ZERO;
     }
 
     String getFormattedDate(Cell dateCell) {
@@ -208,7 +276,6 @@ public class GeneralService {
                 Sheet sheet = workbook.getSheetAt(0);
                 for (Row row : sheet) {
                     if (row.getRowNum() == 0) continue;
-                    String transId = row.getCell(9).getStringCellValue();
                     Cell timeTransCell = row.getCell(5);
                     String formattedTimeDate = getDate(timeTransCell);
 
@@ -237,7 +304,7 @@ public class GeneralService {
                     dpa.setBranchId(branchID);
                     dpa.setPmId(pmId);
                     dpa.setTransDate(formattedTimeDate);
-                    dpa.setTransId(transId);
+//                    dpa.setTransId(transId);
                     dpa.setTransTime(formattedTime);
                     dpa.setGrossAmount(grossAmount);
                     dpa.setNetAmount(nettAmount);
@@ -246,6 +313,7 @@ public class GeneralService {
                     dpa.setSettlementDate(formattedTimeDate);
                     dpa.setSettlementTime(formattedTime);
                     dpa.setParentId(parentId);
+                    System.out.println("dannnnn ");
                     detailPaymentAggregatorRepository.persist(dpa);
                 }
                 String getTransDate = detailPaymentAggregatorRepository.getTransDateByParentId(parentId);
@@ -408,32 +476,27 @@ public class GeneralService {
     }
 
     private String getTime(Cell timeTransCell) {
-        if (timeTransCell == null) {
-            System.out.println("apakah masuk sini");
-            return null; // Jika sel kosong, return null
-        }
+        if (timeTransCell == null) return null;
 
-        // Jika cell berisi angka (NUMERIC) & diformat sebagai tanggal/waktu
         if (timeTransCell.getCellType() == CellType.NUMERIC) {
             Date date = timeTransCell.getDateCellValue();
-            SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm:ss");
-            return timeFormat.format(date);
-        }
-        // Jika cell bertipe STRING (misalnya dalam format "2023-04-18T17:12:59")
-        else if (timeTransCell.getCellType() == CellType.STRING) {
+            return new SimpleDateFormat("HH:mm:ss").format(date);
+        } else if (timeTransCell.getCellType() == CellType.STRING) {
             String timeString = timeTransCell.getStringCellValue().trim();
+            if (timeString.matches("\\d{2}:\\d{2}:\\d{2}")) {
+                return timeString;
+            }
             try {
                 LocalDateTime dateTime = LocalDateTime.parse(timeString);
-                return dateTime.toLocalTime().toString(); // Ambil hanya waktu (HH:mm:ss)
+                return dateTime.toLocalTime().toString();
             } catch (DateTimeParseException e) {
-                return null; // Jika format tidak sesuai, return null
+                System.out.println("Invalid time format: " + timeString);
+                return null;
             }
         }
-        // Jika tipe data lain (BOOLEAN, FORMULA, dll.), return null
-        else {
-            return null;
-        }
+        return null;
     }
+
 
 
 
@@ -579,7 +642,7 @@ public class GeneralService {
         for(String pmId : pmIds){
             request.setPmId(pmId);
             String payMeth = paymentMethodRepository.getPaymentMethodByPmId(pmId);
-            if(payMeth.equalsIgnoreCase(MessageConstant.GOPAY) || payMeth.equalsIgnoreCase(MessageConstant.GOFOOD) || payMeth.equalsIgnoreCase(MessageConstant.SHOPEEFOOD)){
+            if(payMeth.equalsIgnoreCase(MessageConstant.GOPAY) || payMeth.equalsIgnoreCase(MessageConstant.GOFOOD) || payMeth.equalsIgnoreCase(MessageConstant.SHOPEEFOOD) || payMeth.equalsIgnoreCase(MessageConstant.GRABFOOD)){
                 reconBankAggregatorForGoTo(request);
             }else{
                 System.out.println("masuk sini kah");
@@ -628,7 +691,6 @@ public class GeneralService {
     }
 
     public void reconBankAggregatorForGoTo(GeneralRequest request) {
-
         List<String> pmIds = headerPaymentRepository.getPaymentMethodByDate(request.getTransDate());
         String transDate = request.getTransDate();
         for(String pmId : pmIds){

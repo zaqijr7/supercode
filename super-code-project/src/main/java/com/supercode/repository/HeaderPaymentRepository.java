@@ -40,13 +40,13 @@ public class HeaderPaymentRepository implements PanacheRepository<HeaderPayment>
     public List<HeaderPayment> getByTransDateAndBranchId(String transDate, String branchId) {
         String sql = """
         WITH Ranked AS (
-            SELECT hp.pm_id, hp.trans_date, hp.status_rekon_pos_vs_ecom, hp.status_rekom_ecom_vs_pos, hp.status_rekon_ecom_vs_bank, hp.created_at, hp.parent_id,
+            SELECT hp.pm_id, hp.trans_date, hp.status_rekon_pos_vs_ecom, hp.status_rekom_ecom_vs_pos, hp.status_rekon_ecom_vs_bank, hp.created_at, hp.parent_id, hp.file_name,
                    ROW_NUMBER() OVER (PARTITION BY hp.pm_id ORDER BY hp.created_at DESC) AS row_num
             FROM header_payment hp
             WHERE hp.trans_date = :transDate 
             AND hp.branch_id = :branchId
         )
-        SELECT hp.pm_id, hp.trans_date, hp.status_rekon_pos_vs_ecom, hp.status_rekom_ecom_vs_pos, hp.status_rekon_ecom_vs_bank, hp.created_at, hp.parent_id
+        SELECT hp.pm_id, hp.trans_date, hp.status_rekon_pos_vs_ecom, hp.status_rekom_ecom_vs_pos, hp.status_rekon_ecom_vs_bank, hp.created_at, hp.parent_id, hp.file_name
         FROM Ranked r
         JOIN header_payment hp ON hp.pm_id = r.pm_id AND hp.created_at = r.created_at
         WHERE r.row_num = 1
@@ -68,6 +68,7 @@ public class HeaderPaymentRepository implements PanacheRepository<HeaderPayment>
                     hp.setStatusRekonEcomVsBank(row[4] != null ? row[4].toString() : "0");// status_rekom_ecom_vs_pos
                     hp.setCreatedAt(((Timestamp) row[5]).toLocalDateTime());
                     hp.setParentId((String) row[6]);// created_at (Timestamp)
+                    hp.setFileName((String) row[7]);
                     return hp;
                 })
                 .collect(Collectors.toList());

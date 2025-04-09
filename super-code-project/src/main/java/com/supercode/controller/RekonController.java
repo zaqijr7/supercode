@@ -48,7 +48,7 @@ public class RekonController {
     }
 
     @POST
-    @Path("recon/batch-process")
+    @Path("/recon/batch-process")
     public Response rekonBatchProcess(GeneralRequest request) {
         return rekonService.rekonBatchProcess(request);
     }

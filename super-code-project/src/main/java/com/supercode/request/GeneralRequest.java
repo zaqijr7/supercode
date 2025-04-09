@@ -8,6 +8,8 @@ public class GeneralRequest {
     private String transDate;
     private BigDecimal grossAmount;
     private String transTime;
+    private int offset;
+    private int limit;
 
     // Getter dan Setter
 
@@ -50,5 +52,21 @@ public class GeneralRequest {
 
     public void setTransTime(String transTime) {
         this.transTime = transTime;
+    }
+
+    public int getOffset() {
+        return offset;
+    }
+
+    public void setOffset(int offset) {
+        this.offset = offset;
+    }
+
+    public int getLimit() {
+        return limit;
+    }
+
+    public void setLimit(int limit) {
+        this.limit = limit;
     }
 }

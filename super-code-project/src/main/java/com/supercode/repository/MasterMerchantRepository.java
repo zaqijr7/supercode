@@ -23,11 +23,11 @@ public class MasterMerchantRepository implements PanacheRepository<MasterMerchan
         String response ="";
         try {
             response =  (String) entityManager.createNativeQuery(
-                            "SELECT branch_id FROM master_merchant pm WHERE UPPER(branch_name) = UPPER(?1)")
+                            "SELECT branch_id FROM master_merchant pm WHERE UPPER(branch_name) LIKE UPPER(CONCAT('%', ?1, '%'))")
                     .setParameter(1, normalizedBranchName)
                     .getSingleResult();
         } catch (NoResultException e) {
-             response = "NOT FOUND";
+            response = "NOT FOUND";
         } catch (Exception e) {
             response = "ERROR";
         }

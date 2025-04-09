@@ -48,7 +48,7 @@ public class BankMutationRepository implements PanacheRepository<BankMutation> {
         LocalDate settlementDate = LocalDate.parse(request.getTransDate()); // Konversi String ke LocalDate
         LocalDate settlementDateNew = settlementDate;
         if (payMeth.equalsIgnoreCase(MessageConstant.GRABFOOD)) {
-            notesLike = "atmb"; // Ubah ke lowercase
+            notesLike = "VISIONET"; // Ubah ke lowercase
         } else if (payMeth.equalsIgnoreCase(MessageConstant.GOFOOD) || payMeth.equalsIgnoreCase(MessageConstant.GOPAY)) {
             notesLike = "dompet anak bangsa"; // Ubah ke lowercase
             DayOfWeek dayOfWeek = settlementDate.getDayOfWeek();
@@ -78,7 +78,7 @@ public class BankMutationRepository implements PanacheRepository<BankMutation> {
         String notesLike = "";
         LocalDate settlementDateNew = LocalDate.parse(request.getTransDate());
         if (payMeth.equalsIgnoreCase(MessageConstant.GRABFOOD)) {
-            notesLike = "atmb"; // Konversi ke lowercase
+            notesLike = "VISIONET"; // Konversi ke lowercase
         } else if (payMeth.equalsIgnoreCase(MessageConstant.GOFOOD)
         || payMeth.equalsIgnoreCase(MessageConstant.GOPAY)) {
             notesLike = "dompet anak bangsa"; // Konversi ke lowercase
@@ -92,7 +92,9 @@ public class BankMutationRepository implements PanacheRepository<BankMutation> {
                 "AND bank_mutation_id NOT IN (SELECT flag_id_bank FROM detail_agregator_payment where flag_id_bank !='0') " +
                 "AND LOWER(notes) LIKE LOWER(?2) " +
                 "ORDER BY bm.bank_mutation_id ASC";
-
+        System.out.println(query);
+        System.out.println(settlementDateNew);
+        System.out.println(notesLike);
         Query nativeQuery = entityManager.createNativeQuery(query)
                 .setParameter(1, settlementDateNew.toString())
                 .setParameter(2, "%" + notesLike + "%");
