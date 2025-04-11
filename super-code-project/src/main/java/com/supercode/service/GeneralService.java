@@ -701,9 +701,12 @@ public class GeneralService {
             String payMeth = paymentMethodRepository.getPaymentMethodByPmId(pmId);
             List<Map<String, Object>> dataAgg = detailPaymentAggregatorRepository.getDataAggGoTo(request, payMeth);
 //            request.setTransDate(settlementDate.toString());
+            System.out.println("data agg "+ dataAgg.size());
             for (Map<String, Object> agg2 : dataAgg) {
                 request.setTransDate(agg2.get("settDate").toString());
+                System.out.println("get transdate "+ request.getTransDate());
                 List<Map<String, Object>> dataBank = bankMutationRepository.getDataBank(request, payMeth);
+                System.out.println("data bank "+ dataBank.size());
                 BigDecimal aggAmountGofood = BigDecimal.ZERO;
                 LinkedList<Map<String, Object>> queueBank = new LinkedList<>(dataBank);
                 Iterator<Map<String, Object>> iterator = queueBank.iterator();
@@ -713,10 +716,13 @@ public class GeneralService {
                     BigDecimal bankAmount = (BigDecimal) bank.get("netAmount");
 
                     for (Map<String, Object> agg : dataAgg) {
-                        if(agg.get("settDate").toString().equalsIgnoreCase(bank.get("settDate").toString())){
+                        if(payMeth.equalsIgnoreCase(MessageConstant.SHOPEEFOOD)){
                             aggAmountGofood =aggAmountGofood.add((BigDecimal)agg.get("netAmount"));
+                        }else{
+                            if(agg.get("settDate").toString().equalsIgnoreCase(bank.get("settDate").toString())){
+                                aggAmountGofood =aggAmountGofood.add((BigDecimal)agg.get("netAmount"));
+                            }
                         }
-
                     }
 
                     if (aggAmountGofood.compareTo(bankAmount) == 0) {
