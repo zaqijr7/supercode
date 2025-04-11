@@ -168,12 +168,19 @@ public class DetailPaymentAggregatorRepository implements PanacheRepository<com.
 
 
     public String getTransDateByParentId(String parentId) {
+        String query ="select trans_date from (" +
+                "  select trans_date, created_at from detail_agregator_payment " +
+                "  where parent_id = ?1 " +
+                "  order by created_at desc" +
+                ") as subquery group by trans_date limit 1";
+        System.out.println(query);
+        System.out.println(parentId);
         return entityManager.createNativeQuery(
-                        "select distinct trans_date from detail_agregator_payment " +
-                                "where parent_id = ?1 order by created_at desc limit 1")
+                        query)
                 .setParameter(1, parentId)
                 .getSingleResult().toString();
     }
+
 
     public void updateFlagNormalByCondition(GeneralRequest request, List<BigDecimal> grossAmounts) {
         String newFlag= MessageConstant.TWO_VALUE;
@@ -536,9 +543,13 @@ public class DetailPaymentAggregatorRepository implements PanacheRepository<com.
     }
 
     public List<Map<String, Object>> getDataAggGoTo(GeneralRequest request, String payMeth) {
+        String operator ="";
+        if(payMeth.equalsIgnoreCase(MessageConstant.SHOPEEFOOD)){
+            operator=MessageConstant.LESS_THAN_EQUALS;
+        }else operator=MessageConstant.EQUALS;
         String query = "SELECT detail_payment_id, net_amount, settlement_date " +
                 "FROM detail_agregator_payment dpos " +
-                "WHERE trans_date = ?1 AND flag_rekon_bank='0' AND pm_id = ?2 ";
+                "WHERE trans_date "+operator+" ?1 AND flag_rekon_bank='0' AND pm_id = ?2 ";
         // Buat query native
         Query nativeQuery = entityManager.createNativeQuery(query)
                 .setParameter(1, request.getTransDate())
