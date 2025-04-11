@@ -38,7 +38,7 @@ public class LogRecon {
     @Temporal(TemporalType.TIMESTAMP)
     private Date createdAt;
 
-    @Column(name = "created_on", nullable = false)
+//    @Column(name = "created_on", nullable = false)
     private String createdOn;
 
     @Column(name = "changed_by", length = 50)
@@ -145,7 +145,7 @@ public class LogRecon {
     protected void onCreate() {
         createdAt = new Date();
         createdBy= MessageConstant.SYSTEM;
-        createdOn= "00:00:00";
+//        createdOn= "0000:00:00";
     }
 
     public String getDate() {

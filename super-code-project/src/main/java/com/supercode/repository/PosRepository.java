@@ -597,7 +597,7 @@ public class PosRepository implements PanacheRepository<DetailPaymentPos> {
     public List<String> getListTransTime(GeneralRequest request) {
         String query ="select DISTINCT SUBSTRING(dpos.trans_time, 1, 2)  from detail_point_of_sales dpos\n" +
                 "where dpos.branch_id = ?1 and dpos.trans_date = ?2 and flag_rekon_ecom = '0' \n" +
-                "order by dpos.trans_time ";
+                "order by SUBSTRING(dpos.trans_time, 1, 2) ";
         Query nativeQuery = entityManager.createNativeQuery(
                         query)
                 .setParameter(2, request.getTransDate())
