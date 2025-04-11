@@ -282,6 +282,7 @@ public class GeneralService {
                     Cell timeCell = row.getCell(5);
                     String formattedTime = getTime(timeCell);
                     String branchID = masterMerchantRepository.getBranchIdByBranchName(row.getCell(2).getStringCellValue());
+                    System.out.println("ini branch id "+ branchID);
                     if(!branchID.equals(branchId)){
                         continue;
                     }
@@ -304,7 +305,7 @@ public class GeneralService {
                     dpa.setBranchId(branchID);
                     dpa.setPmId(pmId);
                     dpa.setTransDate(formattedTimeDate);
-//                    dpa.setTransId(transId);
+                    dpa.setTransId("");
                     dpa.setTransTime(formattedTime);
                     dpa.setGrossAmount(grossAmount);
                     dpa.setNetAmount(nettAmount);
@@ -313,11 +314,13 @@ public class GeneralService {
                     dpa.setSettlementDate(formattedTimeDate);
                     dpa.setSettlementTime(formattedTime);
                     dpa.setParentId(parentId);
-                    System.out.println("dannnnn ");
                     detailPaymentAggregatorRepository.persist(dpa);
                 }
                 String getTransDate = detailPaymentAggregatorRepository.getTransDateByParentId(parentId);
-                headerPaymentRepository.updateDate(parentId, getTransDate);
+                if(null != getTransDate){
+                    headerPaymentRepository.updateDate(parentId, getTransDate);
+                }
+
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -645,7 +648,6 @@ public class GeneralService {
             if(payMeth.equalsIgnoreCase(MessageConstant.GOPAY) || payMeth.equalsIgnoreCase(MessageConstant.GOFOOD) || payMeth.equalsIgnoreCase(MessageConstant.SHOPEEFOOD) || payMeth.equalsIgnoreCase(MessageConstant.GRABFOOD)){
                 reconBankAggregatorForGoTo(request);
             }else{
-                System.out.println("masuk sini kah");
                 List<BigDecimal> netAmountBank = bankMutationRepository.getAmountBank(request, payMeth);
                 List<Map<String, Object>> dataBank = bankMutationRepository.getDataBank(request, payMeth);
                 List<Map<String, Object>> dataAgg = detailPaymentAggregatorRepository.getDataAgg(request, netAmountBank, payMeth);

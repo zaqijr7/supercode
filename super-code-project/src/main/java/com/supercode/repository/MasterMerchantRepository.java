@@ -19,12 +19,14 @@ public class MasterMerchantRepository implements PanacheRepository<MasterMerchan
     }
 
     public String getBranchIdByBranchName(String branchName) {
+        System.out.println("ini branch name "+ branchName);
         String normalizedBranchName = normalizeBranchName(branchName);
+        String keyword = normalizedBranchName.split(" by ")[0];
         String response ="";
         try {
             response =  (String) entityManager.createNativeQuery(
                             "SELECT branch_id FROM master_merchant pm WHERE UPPER(branch_name) LIKE UPPER(CONCAT('%', ?1, '%'))")
-                    .setParameter(1, normalizedBranchName)
+                    .setParameter(1, keyword)
                     .getSingleResult();
         } catch (NoResultException e) {
             response = "NOT FOUND";

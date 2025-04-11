@@ -23,4 +23,6 @@ public interface MessageConstant {
     String THREE_VALUE ="3";
     String BANK ="BANK";
     Integer DATA_NOT_FOUND =404 ;
+    String EQUALS ="=";
+    String LESS_THAN_EQUALS ="<=";
 }
