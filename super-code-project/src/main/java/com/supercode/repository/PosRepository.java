@@ -711,9 +711,13 @@ public class PosRepository implements PanacheRepository<DetailPaymentPos> {
     }
 
     public String getLatestParentId(GeneralRequest request) {
-        String query = "select distinct parent_id from detail_point_of_sales dpos " +
-                "where trans_date = ?1 and branch_id = ?2 " +
-                "order by created_at desc limit 1";
+        String query = "SELECT parent_id FROM (" +
+                "    SELECT parent_id, created_at FROM detail_point_of_sales dpos " +
+                "    WHERE trans_date = ?1 AND branch_id = ?2 " +
+                "    ORDER BY created_at DESC" +
+                ") AS subquery " +
+                "GROUP BY parent_id " +
+                "LIMIT 1";
 
         Query nativeQuery = entityManager.createNativeQuery(query)
                 .setParameter(1, request.getTransDate())

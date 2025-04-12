@@ -29,7 +29,7 @@ public class ReportService {
         try {
             PosReportDto.PosReport posReport= new PosReportDto.PosReport();
             String parentId = posRepository.getLatestParentId(request);
-            if(null != parentId){
+//            if(null != parentId){
                 List<PosReportDto> posDataList = posRepository.getDataWithOffset(request, parentId);
                 posReport.setPostReportDtos(posDataList);
                 // count total data
@@ -43,9 +43,10 @@ public class ReportService {
                 posReport.setDiff(diff);
                 baseResponse = new BaseResponse(MessageConstant.SUCCESS_CODE, MessageConstant.SUCCESS_MESSAGE);
                 baseResponse.payload = posReport;
-            }else{
-                baseResponse = new BaseResponse(MessageConstant.DATA_NOT_FOUND, "Data Not Found");
-            }
+//            }else{
+//
+//                baseResponse = new BaseResponse(MessageConstant.SUCCESS_CODE, MessageConstant.SUCCESS_MESSAGE);
+//            }
             return Response.status(baseResponse.result).entity(baseResponse).build();
 
         }catch (Exception e){
