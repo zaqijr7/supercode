@@ -7,6 +7,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 
 
 @Entity
@@ -49,7 +50,7 @@ public class DetailPaymentPos {
     private String createdBy;
 
     @Column(name = "created_at", nullable = false)
-    private LocalDateTime createdAt;
+    private String createdAt;
 
     @Column(name = "created_on", nullable = false)
     private LocalDate createdOn;
@@ -74,7 +75,10 @@ public class DetailPaymentPos {
 
     @PrePersist
     protected void onCreate() {
-        createdAt = LocalDateTime.now();
+        LocalDateTime createdAts = LocalDateTime.now();
+        String timeOnly = createdAts.toLocalTime().format(DateTimeFormatter.ofPattern("HH:mm:ss"));
+
+        createdAt = timeOnly;
         createdBy= MessageConstant.SYSTEM;
         createdOn=LocalDate.now();
         flagManual=MessageConstant.FALSE_VALUE;
@@ -169,11 +173,11 @@ public class DetailPaymentPos {
         this.createdBy = createdBy;
     }
 
-    public LocalDateTime getCreatedAt() {
+    public String getCreatedAt() {
         return createdAt;
     }
 
-    public void setCreatedAt(LocalDateTime createdAt) {
+    public void setCreatedAt(String createdAt) {
         this.createdAt = createdAt;
     }
 

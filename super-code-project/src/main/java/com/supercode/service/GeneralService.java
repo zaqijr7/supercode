@@ -138,7 +138,7 @@ public class GeneralService {
                     String formattedTime = getTime(row.getCell(5)); // Sales In Time
 
                     // Parse gross/net sales
-                    BigDecimal grossSales = parseBigDecimal(row.getCell(27));
+                    BigDecimal grossSales = parseBigDecimal(row.getCell(40));
 
                     String payMethod = "";
                     Cell payMethodCell = row.getCell(12);

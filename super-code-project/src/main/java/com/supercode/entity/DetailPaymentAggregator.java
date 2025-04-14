@@ -9,7 +9,9 @@ import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Timestamp;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 @Entity
 @Table(name = "detail_agregator_payment")
@@ -64,7 +66,7 @@ public class DetailPaymentAggregator extends PanacheEntityBase {
     private String createdBy;
 
     @Column(name = "created_at", nullable = false)
-    private LocalDateTime createdAt;
+    private String createdAt;
 
     @Column(name = "created_on", nullable = false)
     private LocalDateTime createdOn;
@@ -89,7 +91,11 @@ public class DetailPaymentAggregator extends PanacheEntityBase {
 
     @PrePersist
     protected void onCreate() {
-        createdAt = LocalDateTime.now();
+
+        LocalDateTime createdAts = LocalDateTime.now();
+        String timeOnly = createdAts.toLocalTime().format(DateTimeFormatter.ofPattern("HH:mm:ss"));
+
+        createdAt = timeOnly;
         createdBy= MessageConstant.SYSTEM;
         createdOn=LocalDateTime.now();
         flagRekonBank=MessageConstant.FALSE_VALUE;
@@ -217,11 +223,11 @@ public class DetailPaymentAggregator extends PanacheEntityBase {
         this.createdBy = createdBy;
     }
 
-    public LocalDateTime getCreatedAt() {
+    public String getCreatedAt() {
         return createdAt;
     }
 
-    public void setCreatedAt(LocalDateTime createdAt) {
+    public void setCreatedAt(String createdAt) {
         this.createdAt = createdAt;
     }
 
