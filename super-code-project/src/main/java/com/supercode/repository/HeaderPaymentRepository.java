@@ -66,7 +66,7 @@ public class HeaderPaymentRepository implements PanacheRepository<HeaderPayment>
                     hp.setStatusRekonPosVsEcom(String.valueOf((boolean) row[2])); // status_rekon_pos_vs_ecom
                     hp.setStatusRekonEcomVsPos(row[3] != null ? row[3].toString() : "0");
                     hp.setStatusRekonEcomVsBank(row[4] != null ? row[4].toString() : "0");// status_rekom_ecom_vs_pos
-                    hp.setCreatedAt(((Timestamp) row[5]).toLocalDateTime());
+                    hp.setCreatedAt((String) row[5]);
                     hp.setParentId((String) row[6]);// created_at (Timestamp)
                     hp.setFileName((String) row[7]);
                     return hp;
