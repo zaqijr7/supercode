@@ -57,7 +57,7 @@ public class TransactionDTO {
         private BigDecimal amount;
         boolean statusRecon;
         private String paymentId;
-        LocalDateTime createdAt;
+        String createdAt;
         private String fileName;
 
         public String getFileName() {
@@ -100,11 +100,11 @@ public class TransactionDTO {
             this.paymentId = paymentId;
         }
 
-        public LocalDateTime getCreatedAt() {
+        public String getCreatedAt() {
             return createdAt;
         }
 
-        public void setCreatedAt(LocalDateTime createdAt) {
+        public void setCreatedAt(String createdAt) {
             this.createdAt = createdAt;
         }
     }

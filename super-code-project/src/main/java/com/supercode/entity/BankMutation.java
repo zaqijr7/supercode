@@ -4,6 +4,7 @@ import com.supercode.util.MessageConstant;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Date;
 
 @Entity
@@ -35,8 +36,7 @@ public class BankMutation {
     private String createdBy;
 
     @Column(name = "created_at", nullable = false, updatable = false)
-    @Temporal(TemporalType.TIMESTAMP)
-    private Date createdAt;
+    private String createdAt;
 
     @Column(name = "created_on", nullable = false)
     private LocalDateTime createdOn;
@@ -119,11 +119,11 @@ public class BankMutation {
         this.createdBy = createdBy;
     }
 
-    public Date getCreatedAt() {
+    public String getCreatedAt() {
         return createdAt;
     }
 
-    public void setCreatedAt(Date createdAt) {
+    public void setCreatedAt(String createdAt) {
         this.createdAt = createdAt;
     }
 
@@ -178,7 +178,11 @@ public class BankMutation {
 
     @PrePersist
     protected void onCreate() {
-        createdAt = new Date();
+        LocalDateTime createdAts = LocalDateTime.now();
+        String timeOnly = createdAts.toLocalTime().format(DateTimeFormatter.ofPattern("HH:mm:ss"));
+
+        createdAt = timeOnly;
+
         createdBy= MessageConstant.SYSTEM;
         createdOn=LocalDateTime.now();
     }

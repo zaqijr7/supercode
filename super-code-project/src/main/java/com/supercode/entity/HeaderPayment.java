@@ -4,6 +4,7 @@ import com.supercode.util.MessageConstant;
 import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 
 @Entity
@@ -36,7 +37,7 @@ public class HeaderPayment {
     private String createdBy;
 
     @Column(name = "created_at", nullable = false)
-    private LocalDateTime createdAt;
+    private String createdAt;
 
     @Column(name = "created_on")
     private LocalDateTime createdOn;
@@ -58,7 +59,10 @@ public class HeaderPayment {
 
     @PrePersist
     protected void onCreate() {
-        createdAt = LocalDateTime.now();
+        LocalDateTime createdAts = LocalDateTime.now();
+        String timeOnly = createdAts.toLocalTime().format(DateTimeFormatter.ofPattern("HH:mm:ss"));
+
+        createdAt = timeOnly;
         createdBy=MessageConstant.SYSTEM;
         createdOn=LocalDateTime.now();
         statusRekonEcomVsBank= MessageConstant.ZERO_VALUE;
@@ -123,11 +127,11 @@ public class HeaderPayment {
         this.createdBy = createdBy;
     }
 
-    public LocalDateTime getCreatedAt() {
+    public String getCreatedAt() {
         return createdAt;
     }
 
-    public void setCreatedAt(LocalDateTime createdAt) {
+    public void setCreatedAt(String createdAt) {
         this.createdAt = createdAt;
     }
 
