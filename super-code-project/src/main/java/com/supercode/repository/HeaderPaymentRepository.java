@@ -40,17 +40,21 @@ public class HeaderPaymentRepository implements PanacheRepository<HeaderPayment>
     public List<HeaderPayment> getByTransDateAndBranchId(String transDate, String branchId) {
         String sql = """
         WITH Ranked AS (
-            SELECT hp.pm_id, hp.trans_date, hp.status_rekon_pos_vs_ecom, hp.status_rekom_ecom_vs_pos, hp.status_rekon_ecom_vs_bank, hp.created_at, hp.parent_id, hp.file_name,
-                   ROW_NUMBER() OVER (PARTITION BY hp.pm_id ORDER BY hp.created_at DESC) AS row_num
+            SELECT hp.pm_id, hp.trans_date, hp.status_rekon_pos_vs_ecom, hp.status_rekom_ecom_vs_pos,
+                   hp.status_rekon_ecom_vs_bank, hp.created_at, hp.parent_id, hp.file_name, hp.payment_id,
+                   ROW_NUMBER() OVER (
+                       PARTITION BY hp.pm_id\s
+                       ORDER BY hp.payment_id DESC
+                   ) AS row_num
             FROM header_payment hp
-            WHERE hp.trans_date = :transDate 
-            AND hp.branch_id = :branchId
+            WHERE hp.trans_date = :transDate
+              AND hp.branch_id = :branchId
         )
-        SELECT hp.pm_id, hp.trans_date, hp.status_rekon_pos_vs_ecom, hp.status_rekom_ecom_vs_pos, hp.status_rekon_ecom_vs_bank, hp.created_at, hp.parent_id, hp.file_name
+        SELECT r.pm_id, r.trans_date, r.status_rekon_pos_vs_ecom, r.status_rekom_ecom_vs_pos,
+               r.status_rekon_ecom_vs_bank, r.created_at, r.parent_id, r.file_name, r.payment_id
         FROM Ranked r
-        JOIN header_payment hp ON hp.pm_id = r.pm_id AND hp.created_at = r.created_at
         WHERE r.row_num = 1
-        ORDER BY hp.created_at DESC;
+        ORDER BY r.payment_id DESC;
     """;
 
         List<Object[]> results = entityManager.createNativeQuery(sql)
