@@ -52,7 +52,7 @@ public class GeneralService {
 
 
 
-    public String saveHeaderPayment(MultipartFormDataInput file, String paymentWay, String pmId, String branchId) {
+    public String saveHeaderPayment(MultipartFormDataInput file, String paymentWay, String pmId, String branchId, String transDate) {
         String parentId = generateRandomCode();
         Map<String, List<InputPart>> formDataMap = file.getFormDataMap();
         List<InputPart> fileParts = formDataMap.get("file");
@@ -68,6 +68,7 @@ public class GeneralService {
         headerPayment.setFileName(getFileName(filePart));
         headerPayment.setParentId(parentId);
         headerPayment.setBranchId(branchId);
+        headerPayment.setTransDate(transDate);
         headerPaymentRepository.persist(headerPayment);
         return parentId;
 
@@ -147,7 +148,10 @@ public class GeneralService {
                     } else if (payMethodCell != null && payMethodCell.getCellType() == CellType.NUMERIC) {
                         payMethod = String.valueOf((int) payMethodCell.getNumericCellValue());
                     }
-                    payMethod= paymentMethodRepository.getPaymentIdByPaymentMethod(payMethod);
+                    String payMethodName= paymentMethodRepository.getPaymentIdByPaymentMethod(payMethod);
+                    if(null == payMethodName){
+                        payMethodName= payMethod;
+                    }
                     DetailPaymentPos detailPaymentPos = new DetailPaymentPos();
                     detailPaymentPos.setPmId("0");
                     detailPaymentPos.setBranchId(branchId);
@@ -156,14 +160,14 @@ public class GeneralService {
                     detailPaymentPos.setTransTime(formattedTime);
                     detailPaymentPos.setGrossAmount(grossSales);
                     detailPaymentPos.setParentId(parentId);
-                    detailPaymentPos.setPayMethodAggregator(payMethod); // kosong, tidak ada di Excel ini
+                    detailPaymentPos.setPayMethodAggregator(payMethodName); // kosong, tidak ada di Excel ini
 
                     posRepository.persist(detailPaymentPos);
                 }
 
                 // update header payment
-                String getTransDate = posRepository.getTransDateByParentId(parentId);
-                headerPaymentRepository.updateDate(parentId, getTransDate);
+                /*String getTransDate = posRepository.getTransDateByParentId(parentId);
+                headerPaymentRepository.updateDate(parentId, getTransDate);*/
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -282,7 +286,6 @@ public class GeneralService {
                     Cell timeCell = row.getCell(5);
                     String formattedTime = getTime(timeCell);
                     String branchID = masterMerchantRepository.getBranchIdByBranchName(row.getCell(2).getStringCellValue());
-                    System.out.println("ini branch id "+ branchID);
                     if(!branchID.equals(branchId)){
                         continue;
                     }
@@ -294,32 +297,55 @@ public class GeneralService {
                     } else if (grossAmountCell.getCellType() == CellType.STRING) {
                         grossAmount = new BigDecimal(grossAmountCell.getStringCellValue());
                     }
-                    Cell nettAmountCell = row.getCell(51);
+                    Cell nettAmountCell = row.getCell(52);
                     BigDecimal nettAmount = null;
                     if (nettAmountCell.getCellType() == CellType.NUMERIC) {
                         nettAmount = BigDecimal.valueOf(nettAmountCell.getNumericCellValue());
                     } else if (nettAmountCell.getCellType() == CellType.STRING) {
                         nettAmount = new BigDecimal(nettAmountCell.getStringCellValue());
                     }
+
+
+                    Cell cell = row.getCell(10);
+                    String transId = "";
+
+                    if (cell != null) {
+                        switch (cell.getCellType()) {
+                            case STRING:
+                                transId = cell.getStringCellValue();
+                                break;
+                            case NUMERIC:
+                                transId = String.valueOf((long) cell.getNumericCellValue()); // atau gunakan format sesuai kebutuhan
+                                break;
+                            case BOOLEAN:
+                                transId = String.valueOf(cell.getBooleanCellValue());
+                                break;
+                            case FORMULA:
+                                transId = cell.getCellFormula();
+                                break;
+                            default:
+                                transId = "";
+                        }
+                    }
                     DetailPaymentAggregator dpa = new DetailPaymentAggregator();
                     dpa.setBranchId(branchID);
                     dpa.setPmId(pmId);
                     dpa.setTransDate(formattedTimeDate);
-                    dpa.setTransId("");
+                    dpa.setTransId(transId);
                     dpa.setTransTime(formattedTime);
                     dpa.setGrossAmount(grossAmount);
                     dpa.setNetAmount(nettAmount);
-                    dpa.setCharge(dpa.getGrossAmount().subtract(dpa.getNetAmount()));
+//                    dpa.setCharge(dpa.getGrossAmount().subtract(dpa.getNetAmount()));
                     dpa.setPaymentId(dpa.getTransId() + dpa.getPmId());
                     dpa.setSettlementDate(formattedTimeDate);
                     dpa.setSettlementTime(formattedTime);
                     dpa.setParentId(parentId);
                     detailPaymentAggregatorRepository.persist(dpa);
                 }
-                String getTransDate = detailPaymentAggregatorRepository.getTransDateByParentId(parentId);
+                /*String getTransDate = detailPaymentAggregatorRepository.getTransDateByParentId(parentId);
                 if(null != getTransDate){
                     headerPaymentRepository.updateDate(parentId, getTransDate);
-                }
+                }*/
 
             }
         } catch (Exception e) {
@@ -449,8 +475,8 @@ public class GeneralService {
                     detailPaymentAggregatorRepository.persist(dpa);
                 }
 // update header payment
-                String getTransDate = detailPaymentAggregatorRepository.getTransDateByParentId(parentId);
-                headerPaymentRepository.updateDate(parentId, getTransDate);
+                /*String getTransDate = detailPaymentAggregatorRepository.getTransDateByParentId(parentId);
+                headerPaymentRepository.updateDate(parentId, getTransDate);*/
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -917,8 +943,8 @@ public class GeneralService {
                     dpa.setParentId(parentId);
                     detailPaymentAggregatorRepository.persist(dpa);
                 }
-                String getTransDate = detailPaymentAggregatorRepository.getTransDateByParentId(parentId);
-                headerPaymentRepository.updateDate(parentId, getTransDate);
+                /*String getTransDate = detailPaymentAggregatorRepository.getTransDateByParentId(parentId);
+                headerPaymentRepository.updateDate(parentId, getTransDate);*/
             }
         } catch (Exception e) {
             e.printStackTrace();

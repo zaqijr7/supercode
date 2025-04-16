@@ -46,7 +46,7 @@ public class HeaderPayment {
     private String changedBy;
 
     @Column(name = "changed_at")
-    private LocalDateTime changedAt;
+    private String changedAt;
 
     @Column(name = "changed_on")
     private LocalDateTime changedOn;
@@ -151,11 +151,11 @@ public class HeaderPayment {
         this.changedBy = changedBy;
     }
 
-    public LocalDateTime getChangedAt() {
+    public String getChangedAt() {
         return changedAt;
     }
 
-    public void setChangedAt(LocalDateTime changedAt) {
+    public void setChangedAt(String changedAt) {
         this.changedAt = changedAt;
     }
 
