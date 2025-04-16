@@ -26,14 +26,14 @@ public class PaymentMethodRepository implements PanacheRepository<PaymentMethod>
     }
 
     public String getPaymentIdByPaymentMethod(String paymentMethod) {
-        return (String) entityManager.createNativeQuery(
-                        "SELECT pm_id  \n" +
-                                "FROM payment_method pm  \n" +
-                                "WHERE UPPER(payment_method) = UPPER(?1);\n")
+        List<?> results = entityManager.createNativeQuery(
+                        "SELECT pm_id FROM payment_method pm WHERE UPPER(payment_method) = UPPER(?1)")
                 .setParameter(1, paymentMethod)
-                .getSingleResult();
+                .getResultList();
 
+        return results.isEmpty() ? null : (String) results.get(0);
     }
+
 
 
 }

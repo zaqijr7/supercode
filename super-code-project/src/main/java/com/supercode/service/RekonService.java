@@ -12,6 +12,8 @@ import jakarta.ws.rs.core.Response;
 import org.hibernate.event.spi.SaveOrUpdateEvent;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @ApplicationScoped
@@ -239,6 +241,20 @@ public class RekonService {
             generalService.reconBankAggregator(request);
             // function 2.3
             generalService.summaryReconEcom2Pos(request);
+
+
+            List<HeaderPayment> headerPayments = headerPaymentRepository.getByTransDateAndBranchId(
+                    request.getTransDate(), request.getBranchId());
+
+            LocalDateTime now = LocalDateTime.now();
+            String timeOnly = now.toLocalTime().format(DateTimeFormatter.ofPattern("HH:mm:ss"));
+
+            for (HeaderPayment hp : headerPayments) {
+                hp.setChangedAt(timeOnly);
+                hp.setChangedOn(now);
+                headerPaymentRepository.updateHeaderChange(hp);
+            }
+//            headerPaymentRepository.flush();
 
             baseResponse = new BaseResponse(MessageConstant.SUCCESS_CODE,MessageConstant.SUCCESS_MESSAGE);
             return Response.status(baseResponse.result).entity(baseResponse).build();

@@ -122,7 +122,7 @@ public class BankMutationService {
             bm.setParentId(parentId);
 
             bankMutationRepository.persist(bm);
-            headerPaymentRepository.updateDate(parentId, formattedTimeDate);
+//            headerPaymentRepository.updateDate(parentId, formattedTimeDate);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -231,7 +231,7 @@ public class BankMutationService {
                 bm.setTransDate(java.sql.Date.valueOf(formattedTimeDate));
                 bm.setParentId(parentId);
                 bankMutationRepository.persist(bm);
-                headerPaymentRepository.updateDate(parentId, formattedTimeDate);
+//                headerPaymentRepository.updateDate(parentId, formattedTimeDate);
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -333,7 +333,7 @@ public class BankMutationService {
             bm.setTransDate(java.sql.Date.valueOf(parsedDate));
             bm.setParentId(parentId);
            bankMutationRepository.persist(bm);
-            headerPaymentRepository.updateDate(parentId, parsedDate);
+//            headerPaymentRepository.updateDate(parentId, parsedDate);
             System.out.println("Data berhasil diproses: " + bm);
 
         } catch (Exception e) {

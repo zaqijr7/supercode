@@ -20,14 +20,14 @@ public class PosAggregatorService {
     GeneralService generalService;
 
     @Transactional
-    public Response uploadFile(MultipartFormDataInput file, String paymentType, String pmId, String branchId) {
+    public Response uploadFile(MultipartFormDataInput file, String paymentType, String pmId, String branchId, String transDate) {
 
         Response response = null;
         BaseResponse baseResponse;
         try {
 
             // insert to header table
-            String parentId = generalService.saveHeaderPayment(file, paymentType, pmId, branchId);
+            String parentId = generalService.saveHeaderPayment(file, paymentType, pmId, branchId, transDate);
 
 
             // insert to detail
