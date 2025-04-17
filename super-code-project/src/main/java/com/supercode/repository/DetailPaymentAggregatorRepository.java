@@ -10,6 +10,7 @@ import jakarta.persistence.Query;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -508,27 +509,43 @@ public class DetailPaymentAggregatorRepository implements PanacheRepository<com.
     }
 
     public List<Map<String, Object>> getDataAggByTransTime(GeneralRequest request) {
-        String query ="select detail_payment_id, gross_amount from detail_agregator_payment dpos " +
-                "where trans_date = :transDate and flag_rekon_pos='0'  and branch_id =:branchId ";
+        String query = "SELECT detail_payment_id, gross_amount FROM detail_agregator_payment dpos " +
+                "WHERE trans_date = :transDate " +
+                "AND branch_id = :branchId " +
+                "AND parent_id = ( " +
+                "    SELECT parent_id " +
+                "    FROM detail_agregator_payment " +
+                "    ORDER BY CONCAT(created_on, ' ', created_at) DESC " +
+                "    LIMIT 1 " +
+                ")";
+
+        // Optional filter by trans_time (only if provided)
         if (request.getTransTime() != null && !request.getTransTime().isEmpty()) {
-            query += "AND SUBSTRING(trans_time, 1, 2) = :transTime ";
+            query += " AND SUBSTRING(trans_time, 1, 2) = :transTime ";
         }
 
+        // Optional filter by pm_id (only if provided)
         if (request.getPmId() != null && !request.getPmId().isEmpty()) {
-            query += " and pm_id = :pmId ";
+            query += " AND pm_id = :pmId ";
         }
-        query += " order by trans_time asc";
-        Query nativeQuery = entityManager.createNativeQuery(
-                        query)
+
+        // Order by trans_time in ascending order
+        query += " ORDER BY trans_time ASC";
+
+        // Create the native query
+        Query nativeQuery = entityManager.createNativeQuery(query)
                 .setParameter("transDate", request.getTransDate())
                 .setParameter("branchId", request.getBranchId());
 
+        // Set optional parameters if provided
         if (request.getTransTime() != null && !request.getTransTime().isEmpty()) {
             nativeQuery.setParameter("transTime", request.getTransTime());
         }
         if (request.getPmId() != null && !request.getPmId().isEmpty()) {
             nativeQuery.setParameter("pmId", request.getPmId());
         }
+
+        // Execute the query and process the result
         List<Object[]> rawResults = nativeQuery.getResultList();
         List<Map<String, Object>> resultList = new ArrayList<>();
 
@@ -542,7 +559,8 @@ public class DetailPaymentAggregatorRepository implements PanacheRepository<com.
         return resultList;
     }
 
-    public List<Map<String, Object>> getDataAggGoTo(GeneralRequest request, String payMeth) {
+
+    /*public List<Map<String, Object>> getDataAggGoTo(GeneralRequest request, String payMeth) {
         String operator ="";
         if(payMeth.equalsIgnoreCase(MessageConstant.SHOPEEFOOD)){
             operator=MessageConstant.LESS_THAN_EQUALS;
@@ -579,7 +597,106 @@ public class DetailPaymentAggregatorRepository implements PanacheRepository<com.
             map.put("settDate", settlementDate.toString());
             return map;
         }).collect(Collectors.toList());
+    }*/
+    /*public List<Map<String, Object>> getDataAggGoTo(GeneralRequest request, String payMeth) {
+        String operator = payMeth.equalsIgnoreCase(MessageConstant.SHOPEEFOOD)
+                ? MessageConstant.LESS_THAN_EQUALS
+                : MessageConstant.EQUALS;
+
+        String query = """
+        SELECT detail_payment_id, net_amount, settlement_date
+        FROM detail_agregator_payment dpos
+        WHERE trans_date "" + operator + "" ?1
+          AND flag_rekon_bank = '0'
+          AND pm_id = ?2
+          AND parent_id = (
+              SELECT parent_id
+              FROM detail_agregator_payment
+              WHERE trans_date "" + operator + "" ?1
+                AND pm_id = ?2
+              ORDER BY created_time DESC
+              LIMIT 1
+          )
+    """;
+
+        Query nativeQuery = entityManager.createNativeQuery(query)
+                .setParameter(1, request.getTransDate())
+                .setParameter(2, request.getPmId());
+
+        List<Object[]> rawResults = nativeQuery.getResultList();
+
+        return rawResults.stream().map(row -> {
+            Map<String, Object> map = new HashMap<>();
+            map.put("detailPaymentId", row[0]);
+            map.put("netAmount", row[1]);
+
+            LocalDate settlementDate = LocalDate.parse(row[2].toString().substring(0, 10));
+            if (payMeth.equalsIgnoreCase(MessageConstant.SHOPEEFOOD)) {
+                settlementDate = settlementDate.plusDays(1);
+            } else if (payMeth.equalsIgnoreCase(MessageConstant.GRABFOOD)) {
+                // do nothing
+            } else {
+                settlementDate = switch (settlementDate.getDayOfWeek()) {
+                    case FRIDAY -> settlementDate.plusDays(3);
+                    case SATURDAY -> settlementDate.plusDays(2);
+                    default -> settlementDate.plusDays(1);
+                };
+            }
+
+            map.put("settDate", settlementDate.toString());
+            return map;
+        }).collect(Collectors.toList());
+    }*/
+
+    public List<Map<String, Object>> getDataAggGoTo(GeneralRequest request, String payMeth) {
+        String subQuery = """
+        SELECT parent_id
+        FROM detail_agregator_payment
+        WHERE trans_date = ?1
+          AND pm_id = ?2
+          AND flag_rekon_bank = '0'
+        ORDER BY CONCAT(created_on, ' ', created_at) DESC
+        LIMIT 1
+        """;
+
+        String query = """
+        SELECT detail_payment_id, net_amount, settlement_date
+        FROM detail_agregator_payment
+        WHERE parent_id = (""" + subQuery + """
+        )
+          AND flag_rekon_bank = '0'
+        """;
+
+        Query nativeQuery = entityManager.createNativeQuery(query)
+                .setParameter(1, request.getTransDate())
+                .setParameter(2, request.getPmId());
+
+        List<Object[]> rawResults = nativeQuery.getResultList();
+
+        return rawResults.stream().map(row -> {
+            Map<String, Object> map = new HashMap<>();
+            map.put("detailPaymentId", row[0]);
+            map.put("netAmount", row[1]);
+
+            LocalDate settlementDate = LocalDate.parse(row[2].toString().substring(0, 10));
+            if (payMeth.equalsIgnoreCase(MessageConstant.SHOPEEFOOD)) {
+                settlementDate = settlementDate.plusDays(1);
+            } else if (payMeth.equalsIgnoreCase(MessageConstant.GRABFOOD)) {
+                settlementDate = settlementDate;
+            } else {
+                settlementDate = switch (settlementDate.getDayOfWeek()) {
+                    case FRIDAY -> settlementDate.plusDays(3);
+                    case SATURDAY -> settlementDate.plusDays(2);
+                    default -> settlementDate.plusDays(1);
+                };
+            }
+
+            map.put("settDate", settlementDate.toString());
+            return map;
+        }).collect(Collectors.toList());
     }
+
+
 
     public BigDecimal getGrossAmountByParentId(String parentId) {
         String query ="select sum(dap.gross_amount) from detail_agregator_payment dap \n" +
@@ -591,5 +708,18 @@ public class DetailPaymentAggregatorRepository implements PanacheRepository<com.
                 .setParameter("parentId", parentId);
         BigDecimal result = (BigDecimal) nativeQuery.getSingleResult();
         return result;
+    }
+
+    public void updateDataAggWithChange(Long detailPaymentId, String updateMessage, String now, String timeOnly) {
+        String query = "UPDATE detail_agregator_payment dpos " +
+                "SET flag_rekon_pos = :newFlag " +
+                " , changed_on = :co, changed_at = :ca " +
+                "WHERE detail_payment_id = :detailPaymentId ";
+        Query nativeQuery =  entityManager.createNativeQuery(query)
+                .setParameter("newFlag", updateMessage)
+                .setParameter("detailPaymentId",detailPaymentId)
+                .setParameter("co", now)
+                .setParameter("ca", timeOnly);
+        nativeQuery.executeUpdate();
     }
 }

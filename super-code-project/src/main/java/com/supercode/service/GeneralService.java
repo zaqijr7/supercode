@@ -18,7 +18,9 @@ import java.io.InputStream;
 import java.math.BigDecimal;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.*;
 
@@ -551,7 +553,7 @@ public class GeneralService {
                 transTimes.addAll(transTimeAgg);
             }
 
-            List<String> pmIds =  paymentMethodRepository.getPaymentMethods();
+            List<String> pmIds =  headerPaymentRepository.getPaymentMethodsByRequest(request);
             for(String pmId : pmIds){
                 request.setPmId(pmId);
                 for(String transTime : transTimes){
@@ -667,7 +669,7 @@ public class GeneralService {
 
     // from git
     public void reconBankAggregator(GeneralRequest request) {
-        List<String> pmIds = headerPaymentRepository.getPaymentMethodByDate(request.getTransDate());
+        List<String> pmIds =  headerPaymentRepository.getPaymentMethodsByRequest(request);
         for(String pmId : pmIds){
             request.setPmId(pmId);
             String payMeth = paymentMethodRepository.getPaymentMethodByPmId(pmId);
@@ -718,7 +720,7 @@ public class GeneralService {
         }
     }
 
-    public void reconBankAggregatorForGoTo(GeneralRequest request) {
+    /*public void reconBankAggregatorForGoTo(GeneralRequest request) {
         List<String> pmIds = headerPaymentRepository.getPaymentMethodByDate(request.getTransDate());
         String transDate = request.getTransDate();
         for(String pmId : pmIds){
@@ -766,7 +768,68 @@ public class GeneralService {
             }
 
         }
+    }*/
+
+    public void reconBankAggregatorForGoTo(GeneralRequest request) {
+        List<String> pmIds = headerPaymentRepository.getPaymentMethodsByRequest(request);
+        String transDate = request.getTransDate();
+
+        for (String pmId : pmIds) {
+            request.setTransDate(transDate);
+            request.setPmId(pmId);
+
+            String payMeth = paymentMethodRepository.getPaymentMethodByPmId(pmId);
+            List<Map<String, Object>> dataAgg = detailPaymentAggregatorRepository.getDataAggGoTo(request, payMeth);
+
+            System.out.println("data agg: " + dataAgg.size());
+
+            // Grouping dataAgg by settlement date
+            Map<String, List<Map<String, Object>>> aggBySettDate = new HashMap<>();
+            for (Map<String, Object> agg : dataAgg) {
+                String settDate = agg.get("settDate").toString();
+                aggBySettDate.computeIfAbsent(settDate, k -> new ArrayList<>()).add(agg);
+            }
+
+            for (String settDate : aggBySettDate.keySet()) {
+                request.setTransDate(settDate);
+                System.out.println("get transdate: " + request.getTransDate());
+
+                List<Map<String, Object>> dataBank = bankMutationRepository.getDataBank(request, payMeth);
+                System.out.println("data bank: " + dataBank.size());
+
+                BigDecimal totalAggAmount = BigDecimal.ZERO;
+                List<Map<String, Object>> currentAggList = aggBySettDate.get(settDate);
+                for (Map<String, Object> agg : currentAggList) {
+                    totalAggAmount = totalAggAmount.add((BigDecimal) agg.get("netAmount"));
+                }
+
+                for (Map<String, Object> bank : dataBank) {
+                    BigDecimal bankAmount = (BigDecimal) bank.get("netAmount");
+
+                    // Khusus ShopeeFood: tidak peduli tanggal
+                    if (payMeth.equalsIgnoreCase(MessageConstant.SHOPEEFOOD)) {
+                        totalAggAmount = dataAgg.stream()
+                                .map(a -> (BigDecimal) a.get("netAmount"))
+                                .reduce(BigDecimal.ZERO, BigDecimal::add);
+                    }
+
+                    if (totalAggAmount.compareTo(bankAmount) == 0) {
+                        // Update detail aggregator
+                        for (Map<String, Object> agg : currentAggList) {
+                            detailPaymentAggregatorRepository.updateDataReconAgg2Bank(
+                                    (Long) agg.get("detailPaymentId"),
+                                    bank.get("bankMutationId").toString()
+                            );
+                        }
+                        // Update flag bank
+                        bankMutationRepository.updateFlagBank(bank.get("bankMutationId").toString());
+                        break; // break karena sudah match
+                    }
+                }
+            }
+        }
     }
+
 
 
 
@@ -810,7 +873,7 @@ public class GeneralService {
 
     public void processWithoutTransTime(GeneralRequest request) {
         try {
-            List<String> pmIds =  paymentMethodRepository.getPaymentMethods();
+            List<String> pmIds =  headerPaymentRepository.getPaymentMethodsByRequest(request);
             for(String pmId : pmIds){
                 request.setPmId(pmId);
                 System.out.println("phase 2 "+ request.getPmId());
@@ -837,13 +900,16 @@ public class GeneralService {
                 BigDecimal posAmount = (BigDecimal) pos.get("grossAmount");
                 if (aggAmount.compareTo(posAmount) == 0) {
                     // Cocok, lakukan update
+                    LocalDateTime now = LocalDateTime.now();
+                    String dateOnly = now.toLocalDate().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+                    String timeOnly = now.toLocalTime().format(DateTimeFormatter.ofPattern("HH:mm:ss"));
 
-                    detailPaymentAggregatorRepository.updateData(
+                    detailPaymentAggregatorRepository.updateDataAggWithChange(
                             (Long) agg.get("detailPaymentId"),
-                            updateMessage
+                            updateMessage, dateOnly, timeOnly
                     );
-                    posRepository.updateDataPos((Long) agg.get("detailPaymentId"),
-                            updateMessage, (Long) pos.get("detailPosId"));
+                    posRepository.updateDataPos2((Long) agg.get("detailPaymentId"),
+                            updateMessage, (Long) pos.get("detailPosId"), dateOnly, timeOnly);
 
                     // Hapus dari queueBank agar tidak digunakan dua kali
                     iterator.remove();

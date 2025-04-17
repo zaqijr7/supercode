@@ -75,10 +75,10 @@ public class DetailPaymentAggregator extends PanacheEntityBase {
     private String changedBy;
 
     @Column(name = "changed_at")
-    private Timestamp changedAt;
+    private String changedAt;
 
     @Column(name = "changed_on")
-    private Date changedOn;
+    private String changedOn;
 
     @Column(name = "notes", length = 150)
     private String notes;
@@ -247,19 +247,19 @@ public class DetailPaymentAggregator extends PanacheEntityBase {
         this.changedBy = changedBy;
     }
 
-    public Timestamp getChangedAt() {
+    public String getChangedAt() {
         return changedAt;
     }
 
-    public void setChangedAt(Timestamp changedAt) {
+    public void setChangedAt(String changedAt) {
         this.changedAt = changedAt;
     }
 
-    public Date getChangedOn() {
+    public String getChangedOn() {
         return changedOn;
     }
 
-    public void setChangedOn(Date changedOn) {
+    public void setChangedOn(String changedOn) {
         this.changedOn = changedOn;
     }
 
