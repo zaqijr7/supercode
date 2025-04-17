@@ -9,14 +9,12 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.Query;
-import jakarta.persistence.TypedQuery;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 @ApplicationScoped
 public class PosRepository implements PanacheRepository<DetailPaymentPos> {
@@ -568,6 +566,21 @@ public class PosRepository implements PanacheRepository<DetailPaymentPos> {
         nativeQuery.executeUpdate();
     }
 
+    public void updateDataPos2(Long detailAggStr, String updatedVersion, Long s, String dateOnly, String timeOnly) {
+        String query = "UPDATE detail_point_of_sales dpos " +
+                "SET flag_rekon_ecom = :newFlag, " +
+                " detail_id_agg= :detailIdAgg," +
+                " changed_on = :co, changed_at=:ca " +
+                "WHERE detail_pos_id = :detailPosId ";
+        Query nativeQuery =  entityManager.createNativeQuery(query)
+                .setParameter("newFlag", updatedVersion)
+                .setParameter("detailIdAgg",detailAggStr)
+                .setParameter("co", dateOnly)
+                .setParameter("ca", timeOnly)
+                .setParameter("detailPosId",s);
+        nativeQuery.executeUpdate();
+    }
+
     public List<Long> getDetailPosIdByBranch(GeneralRequest request) {
         String query ="select detail_pos_id from detail_point_of_sales dpos " +
                 "where trans_date = ?1 and branch_id =?2 " +
@@ -627,20 +640,36 @@ public class PosRepository implements PanacheRepository<DetailPaymentPos> {
 
 
     public List<Map<String, Object>> getDataPosByTransTime(GeneralRequest request) {
-        String query ="select detail_pos_id, gross_amount from detail_point_of_sales dpos " +
-                "where trans_date = :transDate and flag_rekon_ecom='0'  and branch_id =:branchId ";
+        // Membuat query dasar
+        String query = "SELECT detail_pos_id, gross_amount FROM detail_point_of_sales dpos " +
+                "WHERE trans_date = :transDate " +
+                "AND branch_id = :branchId " +
+                "AND parent_id = ( " +
+                "    SELECT parent_id " +
+                "    FROM detail_point_of_sales " +
+                "    ORDER BY CONCAT(created_on, ' ', created_at) DESC " +
+                "    LIMIT 1 " +
+                ")";
+
+        // Menambahkan filter berdasarkan trans_time jika diberikan
         if (request.getTransTime() != null && !request.getTransTime().isEmpty()) {
-            query += "AND SUBSTRING(trans_time, 1, 2) = :transTime ";
+            query += " AND SUBSTRING(trans_time, 1, 2) = :transTime ";
         }
+
+        // Menambahkan filter berdasarkan pm_id jika diberikan
         if (request.getPmId() != null && !request.getPmId().isEmpty()) {
-            query += " and pay_method_aggregator = :pmId ";
+            query += " AND pay_method_aggregator = :pmId ";
         }
-        query += " order by trans_time asc";
-        Query nativeQuery = entityManager.createNativeQuery(
-                        query)
+
+        // Mengurutkan hasil berdasarkan trans_time
+        query += " ORDER BY trans_time ASC";
+
+        // Menyiapkan query native
+        Query nativeQuery = entityManager.createNativeQuery(query)
                 .setParameter("transDate", request.getTransDate())
                 .setParameter("branchId", request.getBranchId());
 
+        // Menetapkan parameter opsional jika diberikan
         if (request.getTransTime() != null && !request.getTransTime().isEmpty()) {
             nativeQuery.setParameter("transTime", request.getTransTime());
         }
@@ -648,6 +677,7 @@ public class PosRepository implements PanacheRepository<DetailPaymentPos> {
             nativeQuery.setParameter("pmId", request.getPmId());
         }
 
+        // Mengeksekusi query dan memproses hasilnya
         List<Object[]> rawResults = nativeQuery.getResultList();
         List<Map<String, Object>> resultList = new ArrayList<>();
 
@@ -660,6 +690,7 @@ public class PosRepository implements PanacheRepository<DetailPaymentPos> {
 
         return resultList;
     }
+
 
     public List<PosReportDto> getDataWithOffset(GeneralRequest request, String parentId) {
         String sql = """

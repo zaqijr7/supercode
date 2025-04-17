@@ -1,6 +1,7 @@
 package com.supercode.repository;
 
 import com.supercode.entity.HeaderPayment;
+import com.supercode.request.GeneralRequest;
 import io.quarkus.hibernate.orm.panache.PanacheRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.persistence.EntityManager;
@@ -113,5 +114,12 @@ public class HeaderPaymentRepository implements PanacheRepository<HeaderPayment>
                 .setParameter(2, hp.getChangedOn())
                 .setParameter(3, hp.getParentId())
                 .executeUpdate();
+    }
+
+    public List<String> getPaymentMethodsByRequest(GeneralRequest request) {
+        return  entityManager.createNativeQuery(
+                        "SELECT distinct pm_id FROM header_payment WHERE   trans_date = ?1 and branch_id = ?2 ").setParameter(1, request.getTransDate())
+                .setParameter(2, request.getBranchId())
+                .getResultList();
     }
 }
