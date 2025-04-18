@@ -693,12 +693,14 @@ public class PosRepository implements PanacheRepository<DetailPaymentPos> {
 
 
     public List<PosReportDto> getDataWithOffset(GeneralRequest request, String parentId) {
+
         String sql = """
         SELECT d.branch_id, d.trans_date, d.trans_time, d.trans_id,
-               d.pay_method_aggregator, d.gross_amount, d.flag_rekon_ecom + 0 AS flag_rekon_ecom,
+               pm.payment_method, d.gross_amount, d.flag_rekon_ecom + 0 AS flag_rekon_ecom,
                 dap.flag_rekon_bank + 0 as flag_rekon_bank 
         from detail_point_of_sales d 
         left join detail_agregator_payment dap on dap.detail_payment_id = d.detail_id_agg
+        join payment_method pm on pm.pm_id = d.pay_method_aggregator
         where d.parent_id =:parentId
         ORDER BY d.created_at DESC
         LIMIT :limit OFFSET :offset
@@ -742,13 +744,11 @@ public class PosRepository implements PanacheRepository<DetailPaymentPos> {
     }
 
     public String getLatestParentId(GeneralRequest request) {
-        String query = "SELECT parent_id FROM (" +
-                "    SELECT parent_id, created_at FROM detail_point_of_sales dpos " +
-                "    WHERE trans_date = ?1 AND branch_id = ?2 " +
-                "    ORDER BY created_at DESC" +
-                ") AS subquery " +
-                "GROUP BY parent_id " +
+        String query = "SELECT parent_id FROM detail_point_of_sales dpos " +
+                "WHERE trans_date = ?1 AND branch_id = ?2 " +
+                "ORDER BY CONCAT(created_on, ' ', created_at) DESC " +
                 "LIMIT 1";
+
 
         Query nativeQuery = entityManager.createNativeQuery(query)
                 .setParameter(1, request.getTransDate())
