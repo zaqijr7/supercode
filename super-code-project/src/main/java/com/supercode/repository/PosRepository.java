@@ -644,6 +644,7 @@ public class PosRepository implements PanacheRepository<DetailPaymentPos> {
         String query = "SELECT detail_pos_id, gross_amount FROM detail_point_of_sales dpos " +
                 "WHERE trans_date = :transDate " +
                 "AND branch_id = :branchId " +
+                " AND flag_rekon_ecom ='0' "+
                 "AND parent_id = ( " +
                 "    SELECT parent_id " +
                 "    FROM detail_point_of_sales " +
@@ -771,5 +772,18 @@ public class PosRepository implements PanacheRepository<DetailPaymentPos> {
                 .getSingleResult();
 
         return ((Number) result).intValue();
+    }
+
+    public void updateToZeroByRequest(GeneralRequest request) {
+        String query = "update detail_point_of_sales dpos set flag_rekon_ecom = '0' " +
+                "where trans_date = :transDate and branch_id = :branchId ";
+
+
+        Query nativeQuery = entityManager.createNativeQuery(query)
+                .setParameter("transDate", request.getTransDate())
+                .setParameter("branchId", request.getBranchId());
+
+
+        nativeQuery.executeUpdate();
     }
 }

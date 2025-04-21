@@ -238,82 +238,104 @@ public class BankMutationService {
         }
 
 
+
     public void processCSVBca(InputStream inputStream, String pmId, String parentId) throws IOException, CsvValidationException {
         List<String[]> csvData = new ArrayList<>();
         String accountNo = "";
+        String period = "";
         int transactionStartIndex = -1;
 
-        System.out.println("Mulai membaca file CSV...");
+        System.out.println("Mulai membaca file CSV BCA...");
 
-        // Baca file CSV dan simpan ke List<String[]>
-        BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8));
-        char delimiter = detectDelimiter(bufferedReader);
-
-        try (CSVReader reader = new CSVReaderBuilder(bufferedReader)
-                .withCSVParser(new CSVParserBuilder().withSeparator(',').build())
-                .build()) {
-
-            String[] nextLine;
+        // Menggunakan CSVReader dari OpenCSV
+        try (CSVReader reader = new CSVReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8))) {
+            String[] row;
             int rowNumber = 0;
-
-            while ((nextLine = reader.readNext()) != null) {
-                csvData.add(nextLine);
+            while ((row = reader.readNext()) != null) {
                 rowNumber++;
-
-                System.out.println("Baris " + rowNumber + ": " + String.join(" | ", nextLine));
-
-                // Cari nomor rekening
-                if (accountNo.isEmpty()) {
-                    for (String cell : nextLine) {
-                        if (cell.contains("No. rekening")) {
-
-                            String[] parts = cell.split("[,:|]");
-                            System.out.println(parts[1]);
-                            if (parts.length > 1) {
-                                accountNo = parts[1].trim().replaceAll("[^0-9]", "");
-                                System.out.println("Nomor rekening ditemukan: " + accountNo);
-                            }
-                            break;
-                        }
-                    }
+                if (row.length > 0 && row[0].startsWith("No. rekening :")) {
+                    accountNo = row[0].replace("No. rekening :", "").trim();
+                    System.out.println("Nomor rekening ditemukan: " + accountNo);
                 }
-                // Deteksi awal transaksi berdasarkan header
-                if (transactionStartIndex == -1 && nextLine.length > 2) {
-                    String firstColumn = nextLine[0].trim();
 
-                    if (firstColumn.equalsIgnoreCase("Tanggal Transaksi")) {
+                if (row.length > 0 && row[0].startsWith("Periode :")) {
+                    String prd  = row[0].replace("Periode :", "").trim();
+                    String[] dateParts = prd.split(" - ");
+                    String startDate = dateParts[0];
+                    period  = startDate.split("/")[2];
+                }
+                // Deteksi header transaksi
+                if (rowNumber > 6) {
+                    String[] cleanedRow = Arrays.stream(row)
+                            .map(String::trim)
+                            .toArray(String[]::new);
+
+// Split dulu, baru bersihkan kutip
+                    String[] splitRow = cleanedRow[0]
+                            .split(",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)", -1);
+
+                    splitRow = Arrays.stream(splitRow)
+                            .map(s -> s.replace("\"", "").trim())
+                            .toArray(String[]::new);
+
+
+                    if (cleanedRow[0].contains("Tanggal Transaksi")){
+
                         transactionStartIndex = rowNumber;
+                        System.out.println("Header transaksi ditemukan di baris: " + rowNumber);
+                    }else{
+                        String dateStr = splitRow[0] + "/" + period;
+                        SimpleDateFormat inputFormat = new SimpleDateFormat("dd/MM/yyyy");
+                        SimpleDateFormat outputFormat = new SimpleDateFormat("dd-MMM-yyyy");
+                        Date date = inputFormat.parse(dateStr);
+
+                        // Format ulang sesuai yang diinginkan
+                        String formattedDate = outputFormat.format(date);
+                        splitRow[0]= formattedDate;
                     }
+                    csvData.add(splitRow);
                 }
             }
+        } catch (ParseException e) {
+            throw new RuntimeException(e);
         }
 
-        // Jika header transaksi tidak ditemukan, hentikan
-        if (transactionStartIndex == -1) {
-            System.err.println("Tidak menemukan header transaksi dalam file CSV.");
+        // Validasi
+        if (accountNo.isEmpty()) {
+            System.err.println("Nomor rekening tidak ditemukan!");
             return;
         }
 
-        for (int i = transactionStartIndex; i < csvData.size(); i++) {
-            String[] row = csvData.get(i);
-            if (row.length == 0) continue;
+        if (transactionStartIndex == -1) {
+            System.err.println("Header transaksi tidak ditemukan!");
+            return;
+        }
 
-            String firstColumn = row[0].trim();
-            if (firstColumn.equalsIgnoreCase("Saldo Awal") || firstColumn.equalsIgnoreCase("Mutasi Debet") ||
-                    firstColumn.equalsIgnoreCase("Mutasi Kredit") || firstColumn.equalsIgnoreCase("Saldo Akhir")) {
-                System.out.println("Melewati baris saldo: " + String.join(" | ", row));
-                continue; // Lewati baris yang berisi saldo
-            }
+        // Proses transaksi
+
+        for (int i = 1; i < csvData.size(); i++) {
+            String[] row = csvData.get(i);
             processRowCSVBca(row, pmId, parentId, accountNo);
         }
     }
 
+
+
+
     private void processRowCSVBca(String[] row, String pmId, String parentId, String accountNo) {
         try {
-            if (row.length < 5) {
-                System.err.println("Baris transaksi tidak valid: " + String.join(" | ", row));
-                return;
+
+            if (row.length == 1) {
+                // Misalnya, jika CSV menggunakan koma sebagai delimiter, kita dapat memecahnya secara manual
+                String[] splitRow = row[0].split(",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)", -1); // Memisahkan koma, tapi menjaga data yang ada dalam tanda kutip
+
+                // Debugging: Tampilkan hasil pemisahan
+                System.out.println("Hasil pemisahan: " + String.join(" | ", splitRow));
+
+                // Set ulang row dengan hasil pemisahan
+                row = splitRow;
             }
+            System.out.println("masuk sini tak "+ row[0]);
 
 //            String formattedTimeDate = row[0].trim();
             String formattedTimeDate = row[0].trim();

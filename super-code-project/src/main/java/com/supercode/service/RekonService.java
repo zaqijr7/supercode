@@ -226,6 +226,8 @@ public class RekonService {
         try {
             generalService.saveDataLog(request);
             // function 2.1
+            generalService.updatePosToZeroValue(request);
+
             generalService.processTransTime(request);
             request.setTransTime(null);
             // function 2.2
