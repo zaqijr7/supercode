@@ -1016,4 +1016,8 @@ public class GeneralService {
             e.printStackTrace();
         }
     }
+
+    public void updatePosToZeroValue(GeneralRequest request) {
+        posRepository.updateToZeroByRequest(request);
+    }
 }
