@@ -515,7 +515,7 @@ public class DetailPaymentAggregatorRepository implements PanacheRepository<com.
                 "AND parent_id = ( " +
                 "    SELECT parent_id " +
                 "    FROM detail_agregator_payment " +
-                "    ORDER BY CONCAT(created_on, ' ', created_at) DESC " +
+                "    ORDER BY detail_payment_id DESC " +
                 "    LIMIT 1 " +
                 ")";
 
@@ -667,6 +667,8 @@ public class DetailPaymentAggregatorRepository implements PanacheRepository<com.
           AND flag_rekon_bank = '0'
         """;
 
+        System.out.println("ini query "+ query);
+        System.out.println("ini pm id "+ request.getPmId());
         Query nativeQuery = entityManager.createNativeQuery(query)
                 .setParameter(1, request.getTransDate())
                 .setParameter(2, request.getPmId());
