@@ -287,6 +287,12 @@ public class GeneralService {
 
                     Cell timeCell = row.getCell(5);
                     String formattedTime = getTime(timeCell);
+
+                    Cell timeTransCellSett = row.getCell(27);
+                    String formattedTimeDateSett = getDate(timeTransCellSett);
+
+                    Cell timeCellSett = row.getCell(27);
+                    String formattedTimeSett = getTime(timeCellSett);
                     String branchID = masterMerchantRepository.getBranchIdByBranchName(row.getCell(2).getStringCellValue());
                     if(!branchID.equals(branchId)){
                         continue;
@@ -339,8 +345,8 @@ public class GeneralService {
                     dpa.setNetAmount(nettAmount);
 //                    dpa.setCharge(dpa.getGrossAmount().subtract(dpa.getNetAmount()));
                     dpa.setPaymentId(dpa.getTransId() + dpa.getPmId());
-                    dpa.setSettlementDate(formattedTimeDate);
-                    dpa.setSettlementTime(formattedTime);
+                    dpa.setSettlementDate(formattedTimeDateSett);
+                    dpa.setSettlementTime(formattedTimeSett);
                     dpa.setParentId(parentId);
                     detailPaymentAggregatorRepository.persist(dpa);
                 }
