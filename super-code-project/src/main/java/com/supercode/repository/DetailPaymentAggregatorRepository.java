@@ -512,7 +512,6 @@ public class DetailPaymentAggregatorRepository implements PanacheRepository<com.
         String query = "SELECT detail_payment_id, gross_amount FROM detail_agregator_payment dpos " +
                 "WHERE trans_date = :transDate " +
                 "AND branch_id = :branchId " +
-                "and flag_rekon_pos = '0' "+
                 "AND parent_id = ( " +
                 "    SELECT parent_id " +
                 "    FROM detail_agregator_payment " +
