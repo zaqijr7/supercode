@@ -77,39 +77,51 @@ public class BankMutationRepository implements PanacheRepository<BankMutation> {
     public List<Map<String, Object>> getDataBank(GeneralRequest request, String payMeth) {
         String notesLike = "";
         LocalDate settlementDateNew = LocalDate.parse(request.getTransDate());
-        if (payMeth.equalsIgnoreCase(MessageConstant.GRABFOOD)) {
-            notesLike = "VISIONET"; // Konversi ke lowercase
-        } else if (payMeth.equalsIgnoreCase(MessageConstant.GOFOOD)
-        || payMeth.equalsIgnoreCase(MessageConstant.GOPAY)) {
-            notesLike = "dompet anak bangsa"; // Konversi ke lowercase
 
-        }else if(payMeth.equalsIgnoreCase(MessageConstant.SHOPEEFOOD)){
-            notesLike="AIRPAY";
+        if (payMeth.equalsIgnoreCase(MessageConstant.GRABFOOD)) {
+            notesLike = "VISIONET";
+        } else if (payMeth.equalsIgnoreCase(MessageConstant.GOFOOD)
+                || payMeth.equalsIgnoreCase(MessageConstant.GOPAY)) {
+            notesLike = "dompet anak bangsa";
+        } else if (payMeth.equalsIgnoreCase(MessageConstant.SHOPEEFOOD)) {
+            notesLike = "AIRPAY";
         }
+
+        // UPDATE flag_rekon_ecom terlebih dahulu
+        String updateQuery = "UPDATE bank_mutation " +
+                "SET flag_rekon_ecom = '0' " +
+                "WHERE trans_date = ?1 " +
+                "AND bank_mutation_id NOT IN (SELECT flag_id_bank FROM detail_agregator_payment WHERE flag_id_bank != '0') " +
+                "AND LOWER(notes) LIKE LOWER(?2)";
+        entityManager.createNativeQuery(updateQuery)
+                .setParameter(1, settlementDateNew.toString())
+                .setParameter(2, "%" + notesLike + "%")
+                .executeUpdate();
+
+        // SELECT setelah update
         String query = "SELECT DISTINCT bm.amount, bm.bank_mutation_id " +
                 "FROM bank_mutation bm " +
                 "WHERE trans_date = ?1 " +
                 "AND bank_mutation_id NOT IN (SELECT flag_id_bank FROM detail_agregator_payment where flag_id_bank !='0') " +
                 "AND LOWER(notes) LIKE LOWER(?2) " +
-                "ORDER BY bm.bank_mutation_id ASC";
-        System.out.println(query);
-        System.out.println(settlementDateNew);
-        System.out.println(notesLike);
+                "ORDER BY bm.bank_mutation_id desc";
         Query nativeQuery = entityManager.createNativeQuery(query)
                 .setParameter(1, settlementDateNew.toString())
                 .setParameter(2, "%" + notesLike + "%");
+
         List<Object[]> rawResults = nativeQuery.getResultList();
         List<Map<String, Object>> resultList = new ArrayList<>();
         for (Object[] row : rawResults) {
             Map<String, Object> map = new HashMap<>();
-            map.put("netAmount", row[0]);  // amount ada di index 0
+            map.put("netAmount", row[0]);
             map.put("bankMutationId", row[1]);
-            map.put("settDate", settlementDateNew.toString());// bank_mutation_id ada di index 1
+            map.put("settDate", settlementDateNew.toString());
             resultList.add(map);
         }
 
         return resultList;
     }
+
 
 
     public void updateFlagBank(String bankMutationId) {
