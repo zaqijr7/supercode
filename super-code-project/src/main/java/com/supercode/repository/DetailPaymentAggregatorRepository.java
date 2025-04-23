@@ -724,4 +724,17 @@ public class DetailPaymentAggregatorRepository implements PanacheRepository<com.
                 .setParameter("ca", timeOnly);
         nativeQuery.executeUpdate();
     }
+
+    public void updateToZeroByRequest(GeneralRequest request) {
+        String query = "update detail_agregator_payment dpos set flag_rekon_pos = '0', flag_rekon_bank = '0', flag_id_bank = null  " +
+                "where trans_date = :transDate and branch_id = :branchId ";
+
+
+        Query nativeQuery = entityManager.createNativeQuery(query)
+                .setParameter("transDate", request.getTransDate())
+                .setParameter("branchId", request.getBranchId());
+
+
+        nativeQuery.executeUpdate();
+    }
 }

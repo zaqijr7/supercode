@@ -227,6 +227,8 @@ public class RekonService {
             generalService.saveDataLog(request);
             // function 2.1
             generalService.updatePosToZeroValue(request);
+            generalService.updateAggToZeroValue(request);
+//            generalService.updateBankToZeroValue(request);
 
             generalService.processTransTime(request);
             request.setTransTime(null);
