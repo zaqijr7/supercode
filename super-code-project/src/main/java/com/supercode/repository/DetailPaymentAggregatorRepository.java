@@ -234,6 +234,15 @@ public class DetailPaymentAggregatorRepository implements PanacheRepository<com.
     }
 
     public int getFailedRecon(String parentId) {
+        Object res = entityManager.createNativeQuery(
+                        "select count(*) from detail_agregator_payment dpos " +
+                                "where parent_id = ?1 ")
+                .setParameter(1, parentId)
+                .getSingleResult();
+
+        if(((Number) res).intValue()==0){
+            return 0;
+        }
         Object result = entityManager.createNativeQuery(
                         "select count(*) from detail_agregator_payment dpos " +
                                 "where parent_id = ?1  and flag_rekon_pos=0 order by trans_date, trans_time asc")

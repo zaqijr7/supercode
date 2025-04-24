@@ -143,6 +143,15 @@ public class BankMutationRepository implements PanacheRepository<BankMutation> {
     }
 
     public int getFailedRecon(String parentId) {
+
+        Object res = entityManager.createNativeQuery(
+                        "select count(*) from  bank_mutation dpos " +
+                                "where parent_id = ?1")
+                .setParameter(1, parentId)
+                .getSingleResult();
+        if(((Number) res).intValue()==0){
+            return 1;
+        }
         Object result = entityManager.createNativeQuery(
                         "select count(*) from  bank_mutation dpos " +
                                 "where parent_id = ?1  and flag_rekon_ecom=0 order by created_at asc")
