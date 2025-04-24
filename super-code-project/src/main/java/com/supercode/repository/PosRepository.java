@@ -417,6 +417,14 @@ public class PosRepository implements PanacheRepository<DetailPaymentPos> {
 
 
     public int getCountFailedByParentId(String parentId) {
+        Object res = entityManager.createNativeQuery(
+                        "select count(*) from detail_point_of_sales dpos " +
+                                "where parent_id = ?1")
+                .setParameter(1, parentId)
+                .getSingleResult();
+        if(((Number) res).intValue()==0){
+            return 1;
+        }
         Object result = entityManager.createNativeQuery(
                         "select count(*) from detail_point_of_sales dpos " +
                                 "where parent_id = ?1  and flag_rekon_ecom=0 order by trans_date, trans_time asc")
