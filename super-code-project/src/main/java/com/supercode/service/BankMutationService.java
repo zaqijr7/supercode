@@ -1,5 +1,8 @@
 package com.supercode.service;
 
+import com.opencsv.CSVParser;
+import com.opencsv.CSVParserBuilder;
+import com.opencsv.CSVReaderBuilder;
 import com.supercode.entity.BankMutation;
 import com.supercode.entity.DebitCredit;
 import com.supercode.repository.BankMutationRepository;
@@ -258,52 +261,54 @@ public class BankMutationService {
             String[] row;
             int rowNumber = 0;
             while ((row = reader.readNext()) != null) {
+                System.out.println("Panjang row: " + row.length);
                 rowNumber++;
+
+// Ambil info rekening dan periode
                 if (row.length > 0 && row[0].startsWith("No. rekening :")) {
                     accountNo = row[0].replace("No. rekening :", "").trim();
                     System.out.println("Nomor rekening ditemukan: " + accountNo);
+                    continue;
                 }
 
                 if (row.length > 0 && row[0].startsWith("Periode :")) {
-                    String prd  = row[0].replace("Periode :", "").trim();
-                    String[] dateParts = prd.split(" - ");
-                    String startDate = dateParts[0];
-                    period  = startDate.split("/")[2];
+                    String[] dateParts = row[0].replace("Periode :", "").trim().split(" - ");
+                    if (dateParts.length > 0) {
+                        period = dateParts[0].split("/")[2];
+                    }
+                    continue;
                 }
-                // Deteksi header transaksi
+
+// Setelah header
                 if (rowNumber > 6) {
                     String[] cleanedRow = Arrays.stream(row)
-                            .map(String::trim)
+                            .map(cell -> cell.replace("\"", "").trim())
                             .toArray(String[]::new);
 
-// Split dulu, baru bersihkan kutip
-                    String[] splitRow = cleanedRow[0]
-                            .split(",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)", -1);
-
-                    splitRow = Arrays.stream(splitRow)
-                            .map(s -> s.replace("\"", "").trim())
-                            .toArray(String[]::new);
-
-
-                    if (cleanedRow[0].contains("Tanggal Transaksi")){
-
+                    if (cleanedRow[0].equalsIgnoreCase("Tanggal Transaksi")) {
                         transactionStartIndex = rowNumber;
                         System.out.println("Header transaksi ditemukan di baris: " + rowNumber);
-                    }else{
-                        String dateStr = splitRow[0] + "/" + period;
+                        continue;
+                    }
+
+                    if (cleanedRow[0].isEmpty()) continue;
+
+                    // Format ulang tanggal
+                    try {
+                        String dateStr = cleanedRow[0] + "/" + period;
                         SimpleDateFormat inputFormat = new SimpleDateFormat("dd/MM/yyyy");
                         SimpleDateFormat outputFormat = new SimpleDateFormat("dd-MMM-yyyy");
                         Date date = inputFormat.parse(dateStr);
-
-                        // Format ulang sesuai yang diinginkan
-                        String formattedDate = outputFormat.format(date);
-                        splitRow[0]= formattedDate;
+                        cleanedRow[0] = outputFormat.format(date);
+                    } catch (ParseException e) {
+                        System.err.println("Gagal parsing tanggal: " + cleanedRow[0]);
+                        continue;
                     }
-                    csvData.add(splitRow);
+
+                    System.out.println("Row transaksi valid, jumlah kolom: " + cleanedRow.length);
+                    csvData.add(cleanedRow);
                 }
             }
-        } catch (ParseException e) {
-            throw new RuntimeException(e);
         }
 
         // Validasi
@@ -325,12 +330,107 @@ public class BankMutationService {
         }
     }
 
+    /*public void processCSVBca(InputStream inputStream, String pmId, String parentId, String transDate) throws IOException, CsvValidationException {
+        List<String[]> csvData = new ArrayList<>();
+        String accountNo = "";
+        String period = "";
+        boolean startReading = false;
+
+        System.out.println("Mulai membaca file CSV BCA...");
+
+        // Gunakan delimiter ; karena kemungkinan file dari Excel regional Indonesia
+        CSVParser parser = new CSVParserBuilder()
+                .withSeparator(',')
+                .withQuoteChar('"')
+                .build();
+
+        try (CSVReader reader = new CSVReaderBuilder(new InputStreamReader(inputStream, StandardCharsets.UTF_8))
+                .withCSVParser(parser)
+                .build()) {
+
+            String[] row;
+            int rowNumber = 0;
+            while ((row = reader.readNext()) != null) {
+                rowNumber++;
+                if (row.length == 0 || row[0].isEmpty()) continue;
+
+                String firstCell = row[0].trim();
+
+                // Info rekening
+                if (firstCell.startsWith("No. rekening :")) {
+                    accountNo = firstCell.replace("No. rekening :", "").trim();
+                    System.out.println("Nomor rekening ditemukan: " + accountNo);
+                    continue;
+                }
+
+                // Info periode
+                if (firstCell.startsWith("Periode :")) {
+                    String[] dateParts = firstCell.replace("Periode :", "").trim().split(" - ");
+                    if (dateParts.length > 0) {
+                        String[] startDateParts = dateParts[0].split("/");
+                        if (startDateParts.length == 3) {
+                            period = startDateParts[2];  // Ambil tahun
+                        }
+                    }
+                    continue;
+                }
+
+                // Deteksi awal transaksi
+                if (firstCell.equalsIgnoreCase("Tanggal Transaksi")) {
+                    startReading = true;
+                    System.out.println("Header transaksi ditemukan di baris: " + rowNumber);
+                    continue;
+                }
+
+                // Lewati sebelum transaksi
+                if (!startReading) continue;
+
+                // Proses baris transaksi
+                if (row.length < 5) {
+                    System.err.println("Baris transaksi tidak valid di baris " + rowNumber + ": kolom kurang");
+                    continue;
+                }
+
+                try {
+                    // Format ulang tanggal
+                    String dateStr = row[0].trim() + "/" + period;
+                    SimpleDateFormat inputFormat = new SimpleDateFormat("dd/MM/yyyy");
+                    SimpleDateFormat outputFormat = new SimpleDateFormat("dd-MMM-yyyy");
+                    Date date = inputFormat.parse(dateStr);
+                    row[0] = outputFormat.format(date);
+                } catch (ParseException e) {
+                    System.err.println("Gagal parsing tanggal di baris " + rowNumber + ": " + row[0]);
+                    continue;
+                }
+
+                csvData.add(row);
+            }
+        }
+
+        // Validasi akhir
+        if (accountNo.isEmpty()) {
+            System.err.println("Nomor rekening tidak ditemukan!");
+            return;
+        }
+
+        if (!startReading) {
+            System.err.println("Header transaksi tidak ditemukan!");
+            return;
+        }
+
+        // Proses transaksi
+        for (String[] row : csvData) {
+            processRowCSVBca(row, pmId, parentId, accountNo, transDate);
+        }
+    }*/
+
+
 
 
 
     private void processRowCSVBca(String[] row, String pmId, String parentId, String accountNo, String transDate) {
         try {
-
+            System.out.println("ini row "+ row.length);
             if (row.length == 1) {
                 // Misalnya, jika CSV menggunakan koma sebagai delimiter, kita dapat memecahnya secara manual
                 String[] splitRow = row[0].split(",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)", -1); // Memisahkan koma, tapi menjaga data yang ada dalam tanda kutip
@@ -358,6 +458,8 @@ public class BankMutationService {
             bm.setAmount(grossAmount);
             bm.setDebitCredit(DebitCredit.valueOf(debitCredit));
             String parsedDate = parseDate(formattedTimeDate);
+            System.out.println("ini parse date "+ parsedDate);
+            System.out.println("ini transDate "+ transDate);
             if(parsedDate.equalsIgnoreCase(transDate)){
                 bm.setTransDate(java.sql.Date.valueOf(parsedDate));
                 bm.setParentId(parentId);

@@ -139,13 +139,16 @@ public class GeneralService {
                     String branchName = row.getCell(8).getStringCellValue(); // Branch
                     String branchId = masterMerchantRepository.getBranchIdByBranchName(branchName);
                     if(!branchIdHeader.equalsIgnoreCase(branchId)){
+                        System.out.println("masukk kah");
                         continue;
                     }
 
 
                     String formattedDate = getDate(row.getCell(4)); // Sales Date
-                    String formattedTime = getTime(row.getCell(5)); // Sales In Time
+                    String formattedTime = getTime(row.getCell(5));
+                    System.out.println("hmmm " + formattedDate + " asdad "+ transDate);// Sales In Time
                     if(!formattedDate.equalsIgnoreCase(transDate)){
+
                         continue;
                     }
                     // Parse gross/net sales
