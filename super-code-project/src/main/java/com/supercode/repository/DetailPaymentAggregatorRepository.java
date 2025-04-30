@@ -1,5 +1,7 @@
 package com.supercode.repository;
 
+import com.supercode.dto.AggReportDto;
+import com.supercode.dto.PosReportDto;
 import com.supercode.request.GeneralRequest;
 import com.supercode.util.MessageConstant;
 import io.quarkus.hibernate.orm.panache.PanacheRepository;
@@ -745,5 +747,75 @@ public class DetailPaymentAggregatorRepository implements PanacheRepository<com.
 
 
         nativeQuery.executeUpdate();
+    }
+
+    public String getLatestParentId(GeneralRequest request) {
+        String query = "SELECT parent_id FROM detail_agregator_payment dpos " +
+                "WHERE trans_date = ?1 AND branch_id = ?2 " +
+                "ORDER BY CONCAT(created_on, ' ', created_at) DESC " +
+                "LIMIT 1";
+
+
+        Query nativeQuery = entityManager.createNativeQuery(query)
+                .setParameter(1, request.getTransDate())
+                .setParameter(2, request.getBranchId());
+
+        List<?> resultList = nativeQuery.getResultList();
+
+        if (resultList.isEmpty()) {
+            return null; // atau bisa return "", atau lempar custom exception
+        }
+
+        return resultList.get(0).toString();
+    }
+
+    public List<AggReportDto> getDataWithOffset(GeneralRequest request, String parentId) {
+        String sql = """
+        SELECT d.branch_id, d.trans_date, d.trans_time, d.trans_id,
+               pm.payment_method, d.gross_amount, d.flag_rekon_ecom + 0 AS flag_rekon_ecom,
+                dap.flag_rekon_bank + 0 as flag_rekon_bank 
+        from detail_point_of_sales d 
+        left join detail_agregator_payment dap on dap.detail_payment_id = d.detail_id_agg
+        join payment_method pm on pm.pm_id = d.pay_method_aggregator
+        where d.parent_id =:parentId
+        ORDER BY d.created_at DESC
+        LIMIT :limit OFFSET :offset
+    """;
+
+        Query query = entityManager.createNativeQuery(sql);
+        query.setParameter("parentId", parentId);
+        query.setParameter("limit", request.getLimit());
+        query.setParameter("offset", request.getOffset());
+
+        List<Object[]> resultList = query.getResultList();
+        List<AggReportDto> reports = new ArrayList<>();
+
+        for (Object[] row : resultList) {
+            String branchId = (String) row[0];
+            String transDate = row[1] != null ? row[1].toString() : null; // java.sql.Date
+            String transTime = row[2] != null ? row[2].toString() : null; // java.sql.Time
+            String transId = (String) row[3];
+            String payMethod = (String) row[4];
+            BigDecimal grossAmount = (BigDecimal) row[5];
+            String flagRekonEcom = String.valueOf(row[6]);
+            String flagReconBank = String.valueOf(row[7]);
+            if(flagRekonEcom.equals("1")|| flagRekonEcom.equals("2")){
+                flagRekonEcom="OK";
+            }else if(flagRekonEcom.equals("3")){
+                flagRekonEcom = "OK With Notes";
+            }else{
+                flagRekonEcom = "Not OK";
+            }
+
+            if(flagReconBank.equals("1")){
+                flagReconBank="OK";
+            }else flagReconBank ="Not OK";
+            reports.add(new AggReportDto(
+                    branchId, transDate, transTime, transId,
+                    payMethod, grossAmount, flagRekonEcom, flagReconBank
+            ));
+        }
+
+        return reports;
     }
 }

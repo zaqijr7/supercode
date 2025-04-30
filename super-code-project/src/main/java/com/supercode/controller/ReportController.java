@@ -24,4 +24,10 @@ public class ReportController {
     public Response reportReconPosEcom(GeneralRequest request) {
         return reportService.getDataReportPosVsEcom(request);
     }
+
+    @POST
+    @Path("/report/recon-pos-ecom/ext")
+    public Response reportReconPosEcom2(GeneralRequest request) {
+        return reportService.getDataReportPosVsEcom2(request);
+    }
 }

@@ -3,7 +3,7 @@ package com.supercode.dto;
 import java.math.BigDecimal;
 import java.util.List;
 
-public class PosReportDto {
+public class AggReportDto {
     private String branch;
     private String transDate;
     private String transTime;
@@ -12,10 +12,8 @@ public class PosReportDto {
     private BigDecimal amountPos;
     private String inAggregator;
     private String statusInBank;
-    private BigDecimal grossAmountAgg;
-    private BigDecimal netAmountAgg;
 
-    public PosReportDto(String branch, String transDate, String transTime, String transId,
+    public AggReportDto(String branch, String transDate, String transTime, String transId,
                         String paymentMethod, BigDecimal amountPos, String inAggregator, String statusInBank) {
         this.branch = branch;
         this.transDate = transDate;
@@ -97,17 +95,17 @@ public class PosReportDto {
 
 
     public static class PosReport{
-        private List<PosReportDto> postReportDtos;
+        private List<AggReportDto> postReportDtos;
         private int totalData;
         private BigDecimal totalPos;
         private BigDecimal totalAgg;
         private BigDecimal diff;
 
-        public List<PosReportDto> getPostReportDtos() {
+        public List<AggReportDto> getPostReportDtos() {
             return postReportDtos;
         }
 
-        public void setPostReportDtos(List<PosReportDto> postReportDtos) {
+        public void setPostReportDtos(List<AggReportDto> postReportDtos) {
             this.postReportDtos = postReportDtos;
         }
 

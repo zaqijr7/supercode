@@ -1,5 +1,6 @@
 package com.supercode.service;
 
+import com.supercode.dto.AggReportDto;
 import com.supercode.dto.PosReportDto;
 import com.supercode.request.GeneralRequest;
 import com.supercode.entity.DetailPaymentPos;
@@ -43,6 +44,40 @@ public class ReportService {
                 posReport.setDiff(diff);
                 baseResponse = new BaseResponse(MessageConstant.SUCCESS_CODE, MessageConstant.SUCCESS_MESSAGE);
                 baseResponse.payload = posReport;
+//            }else{
+//
+//                baseResponse = new BaseResponse(MessageConstant.SUCCESS_CODE, MessageConstant.SUCCESS_MESSAGE);
+//            }
+            return Response.status(baseResponse.result).entity(baseResponse).build();
+
+        }catch (Exception e){
+            e.printStackTrace();
+            baseResponse = new BaseResponse(MessageConstant.FAILED_CODE, MessageConstant.FAILED_MESSAGE);
+            return Response.status(baseResponse.result).entity(baseResponse).build();
+        }
+
+
+    }
+
+    public Response getDataReportPosVsEcom2(GeneralRequest request) {
+        BaseResponse baseResponse;
+        try {
+            PosReportDto.PosReport posReport= new PosReportDto.PosReport();
+            String parentId = posRepository.getLatestParentId(request);
+//            if(null != parentId){
+            List<PosReportDto> posDataList = posRepository.getDataWithOffset(request, parentId);
+            posReport.setPostReportDtos(posDataList);
+            // count total data
+            int totalData = posRepository.getTotalPost(parentId);
+            BigDecimal totalAmountPos = posRepository.getAmountByParentId(parentId);
+            BigDecimal totalAmountAgg = detailPaymentAggregatorRepository.getGrossAmountByParentId(parentId);
+            posReport.setTotalData(totalData);
+            posReport.setTotalPos(totalAmountPos==null? BigDecimal.valueOf(0):totalAmountPos);
+            posReport.setTotalAgg(totalAmountAgg==null? BigDecimal.valueOf(0) :totalAmountAgg);
+            BigDecimal diff = posReport.getTotalPos().subtract(posReport.getTotalAgg()).abs();
+            posReport.setDiff(diff);
+            baseResponse = new BaseResponse(MessageConstant.SUCCESS_CODE, MessageConstant.SUCCESS_MESSAGE);
+            baseResponse.payload = posReport;
 //            }else{
 //
 //                baseResponse = new BaseResponse(MessageConstant.SUCCESS_CODE, MessageConstant.SUCCESS_MESSAGE);
