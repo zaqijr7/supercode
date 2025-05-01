@@ -243,7 +243,7 @@ public class DetailPaymentAggregatorRepository implements PanacheRepository<com.
                 .getSingleResult();
 
         if(((Number) res).intValue()==0){
-            return 0;
+            return 1;
         }
         Object result = entityManager.createNativeQuery(
                         "select count(*) from detail_agregator_payment dpos " +
