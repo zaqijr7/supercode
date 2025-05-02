@@ -220,6 +220,7 @@ public class RekonService {
     @Transactional
     public Response rekonBatchProcess(GeneralRequest request) {
         BaseResponse baseResponse;
+        String transDate = request.getTransDate();
 
         // save data to submit process
 
@@ -244,6 +245,7 @@ public class RekonService {
             // function 2.5 recon ecommerce to bank
             generalService.reconBankAggregator(request);
             // function 2.3
+            request.setTransDate(transDate);
             generalService.summaryReconEcom2Pos(request);
 
 
