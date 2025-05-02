@@ -22,6 +22,7 @@ public interface MessageConstant {
     String TWO_VALUE ="2";
     String THREE_VALUE ="3";
     String BANK ="BANK";
+    String DIGITAL ="DIGITAL";
     Integer DATA_NOT_FOUND =404 ;
     String EQUALS ="=";
     String LESS_THAN_EQUALS ="<=";

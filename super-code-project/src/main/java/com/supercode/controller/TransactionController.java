@@ -30,4 +30,11 @@ public class TransactionController {
     public Response branchTransactions(GeneralRequest request) {
         return transactionService.getBranchTransaction(request);
     }
+
+    @POST
+    @Path("/branch/dashboard")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Response branchDashboardTransactions(GeneralRequest request) {
+        return transactionService.getBranchDashboarTransaction(request);
+    }
 }
