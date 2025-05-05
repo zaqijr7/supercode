@@ -130,4 +130,40 @@ public class TransactionService {
             return Response.status(baseResponse.result).entity(baseResponse).build();
         }
     }
+
+    public Response getBranchDashboarTransaction(GeneralRequest request) {
+        BaseResponse baseResponse;
+        BigDecimal allGrossAmount = BigDecimal.ZERO;
+        BigDecimal allNettAmount = BigDecimal.ZERO;
+        List<TransactionDTO.TransactionList> transactionLists = new ArrayList<>();
+        try {
+            // get pm by method digital
+            List<String> pmIds = paymentMethodRepository.getPaymentMethodByGroup(MessageConstant.DIGITAL);
+            TransactionDTO transactionDTO = new TransactionDTO();
+            transactionDTO.setTransactionDate(request.getTransDate());
+            transactionDTO.setBranchId(request.getBranchId());
+            for(String pmId : pmIds){
+                TransactionDTO.TransactionList transactionList = new TransactionDTO.TransactionList();
+                String transactionSource = paymentMethodRepository.getPaymentMethodByPmId(pmId);
+                transactionList.setPaymentId(pmId);
+                transactionList.setTransactionSource(transactionSource);
+                BigDecimal amount = detailPaymentAggregatorRepository.getAmountByParentIdByRequest(request, pmId, "gross_amount");
+                BigDecimal amountNet = detailPaymentAggregatorRepository.getAmountByParentIdByRequest(request, pmId, "net_amount");
+                allNettAmount.add(amountNet);
+                allGrossAmount.add(amount);
+                transactionList.setAmount(amount);
+                transactionLists.add(transactionList);
+            }
+            transactionDTO.setTransactionList(transactionLists);
+            transactionDTO.setAllNet(allNettAmount);
+            transactionDTO.setAllGross(allGrossAmount);
+            baseResponse = new BaseResponse(200, "Successfully retrieved payment transactions");
+            baseResponse.payload = transactionDTO;
+            return Response.status(baseResponse.result).entity(baseResponse).build();
+        }catch (Exception e){
+            e.printStackTrace();
+            baseResponse = new BaseResponse(500, "Failed to retrieve payment transactions");
+            return Response.status(baseResponse.result).entity(baseResponse).build();
+        }
+    }
 }

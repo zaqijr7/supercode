@@ -35,5 +35,10 @@ public class PaymentMethodRepository implements PanacheRepository<PaymentMethod>
     }
 
 
-
+    public List<String> getPaymentMethodByGroup(String digital) {
+        return  entityManager.createNativeQuery(
+                        "SELECT pm_id FROM payment_method WHERE payment_type = :payType")
+                .setParameter("payType", digital)
+                .getResultList();
+    }
 }

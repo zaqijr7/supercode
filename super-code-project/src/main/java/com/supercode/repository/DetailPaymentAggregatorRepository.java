@@ -818,4 +818,45 @@ public class DetailPaymentAggregatorRepository implements PanacheRepository<com.
 
         return reports;
     }
+
+    public BigDecimal getAmountByParentIdByRequest(GeneralRequest request, String pmId, String amountField) {
+        String sql = """
+        WITH ranked_parent AS (
+            SELECT 
+                parent_id,
+                trans_date,
+                ROW_NUMBER() OVER (
+                    PARTITION BY trans_date
+                    ORDER BY CONCAT(created_on, ' ', created_at) DESC
+                ) AS rn
+            FROM header_payment
+            WHERE pm_id = :pmId
+              AND branch_id = :branchId
+              AND trans_date BETWEEN :startDate AND :endDate
+        )
+        SELECT SUM(dap.%s)
+        FROM detail_agregator_payment dap
+        JOIN ranked_parent rp ON dap.parent_id = rp.parent_id
+        WHERE rp.rn = 1
+        """.formatted(amountField);
+
+        Object result = entityManager.createNativeQuery(sql)
+                .setParameter("pmId", pmId)
+                .setParameter("branchId", request.getBranchId())
+                .setParameter("startDate", request.getStartDate())
+                .setParameter("endDate", request.getEndDate())
+                .getSingleResult();
+
+        // Handle null result safely
+        if (result == null) {
+            return BigDecimal.ZERO;
+        } else if (result instanceof BigDecimal) {
+            return (BigDecimal) result;
+        } else if (result instanceof Number) {
+            return BigDecimal.valueOf(((Number) result).doubleValue());
+        } else {
+            throw new IllegalStateException("Unexpected result type: " + result.getClass());
+        }
+    }
+
 }

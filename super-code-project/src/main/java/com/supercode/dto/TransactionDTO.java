@@ -1,16 +1,36 @@
 package com.supercode.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class TransactionDTO {
     private String transactionDate;
     private String branchId;
-    private boolean statusRecon;
+    private Boolean statusRecon;
     private List<TransactionList> transactionList;
-    private int submitStatus;
+    private Integer submitStatus;
+    private BigDecimal allGross;
+    private BigDecimal allNet;
 
+    public BigDecimal getAllGross() {
+        return allGross;
+    }
+
+    public void setAllGross(BigDecimal allGross) {
+        this.allGross = allGross;
+    }
+
+    public BigDecimal getAllNet() {
+        return allNet;
+    }
+
+    public void setAllNet(BigDecimal allNet) {
+        this.allNet = allNet;
+    }
 
     public String getTransactionDate() {
         return transactionDate;
@@ -28,11 +48,11 @@ public class TransactionDTO {
         this.branchId = branchId;
     }
 
-    public boolean isStatusRecon() {
+    public Boolean isStatusRecon() {
         return statusRecon;
     }
 
-    public void setStatusRecon(boolean statusRecon) {
+    public void setStatusRecon(Boolean statusRecon) {
         this.statusRecon = statusRecon;
     }
 
@@ -44,18 +64,19 @@ public class TransactionDTO {
         this.transactionList = transactionList;
     }
 
-    public int isSubmitStatus() {
+    public Integer isSubmitStatus() {
         return submitStatus;
     }
 
-    public void setSubmitStatus(int submitStatus) {
+    public void setSubmitStatus(Integer submitStatus) {
         this.submitStatus = submitStatus;
     }
 
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     public static class TransactionList{
         private String  transactionSource;
         private BigDecimal amount;
-        boolean statusRecon;
+        Boolean statusRecon;
         private String paymentId;
         String createdAt;
         private String fileName;
@@ -84,11 +105,11 @@ public class TransactionDTO {
             this.amount = amount;
         }
 
-        public boolean isStatusRecon() {
+        public Boolean isStatusRecon() {
             return statusRecon;
         }
 
-        public void setStatusRecon(boolean statusRecon) {
+        public void setStatusRecon(Boolean statusRecon) {
             this.statusRecon = statusRecon;
         }
 
