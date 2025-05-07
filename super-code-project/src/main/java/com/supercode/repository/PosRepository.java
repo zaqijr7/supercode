@@ -705,11 +705,10 @@ public class PosRepository implements PanacheRepository<DetailPaymentPos> {
 
         String sql = """
         SELECT d.branch_id, d.trans_date, d.trans_time, d.trans_id,
-               pm.payment_method, d.gross_amount, d.flag_rekon_ecom + 0 AS flag_rekon_ecom,
+               d.pay_method_aggregator,d.gross_amount, d.flag_rekon_ecom + 0 AS flag_rekon_ecom,
                 dap.flag_rekon_bank + 0 as flag_rekon_bank 
         from detail_point_of_sales d 
         left join detail_agregator_payment dap on dap.detail_payment_id = d.detail_id_agg
-        join payment_method pm on pm.pm_id = d.pay_method_aggregator
         where d.parent_id =:parentId
         ORDER BY d.created_at DESC
         LIMIT :limit OFFSET :offset
@@ -743,9 +742,22 @@ public class PosRepository implements PanacheRepository<DetailPaymentPos> {
             if(flagReconBank.equals("1")){
                 flagReconBank="OK";
             }else flagReconBank ="Not OK";
+            List<?> results = entityManager.createNativeQuery(
+                            "SELECT payment_method FROM payment_method WHERE pm_id = ?1")
+                    .setParameter(1, payMethod)
+                    .getResultList();
+
+            String payMethodName;
+
+            if (results.isEmpty()) {
+                payMethodName = payMethod; // fallback jika tidak ditemukan
+            } else {
+                payMethodName = results.get(0).toString(); // ambil hasil pertama
+            }
+
             reports.add(new PosReportDto(
                     branchId, transDate, transTime, transId,
-                    payMethod, grossAmount, flagRekonEcom, flagReconBank
+                    payMethodName, grossAmount, flagRekonEcom, flagReconBank
             ));
         }
 
