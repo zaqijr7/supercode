@@ -2,8 +2,10 @@ package com.supercode.entity;
 
 import com.supercode.util.MessageConstant;
 import jakarta.persistence.*;
+import net.bytebuddy.asm.Advice;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Date;
 
 @Entity
@@ -34,11 +36,11 @@ public class LogRecon {
     @Column(name = "created_by", length = 50, nullable = false)
     private String createdBy;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
     @Temporal(TemporalType.TIMESTAMP)
-    private Date createdAt;
+    @Column(name = "created_at", length = 50, nullable = false)
+    private String createdAt;
 
-//    @Column(name = "created_on", nullable = false)
+    @Column(name = "created_on", nullable = false)
     private String createdOn;
 
     @Column(name = "changed_by", length = 50)
@@ -101,19 +103,19 @@ public class LogRecon {
         this.createdBy = createdBy;
     }
 
-    public Date getCreatedAt() {
+    public String getCreatedAt() {
         return createdAt;
     }
 
-    public void setCreatedAt(Date createdAt) {
+    public void setCreatedAt(String createdAt) {
         this.createdAt = createdAt;
     }
 
-    public java.lang.String getCreatedOn() {
+    public String getCreatedOn() {
         return createdOn;
     }
 
-    public void setCreatedOn(java.lang.String createdOn) {
+    public void setCreatedOn(String createdOn) {
         this.createdOn = createdOn;
     }
 
@@ -143,9 +145,11 @@ public class LogRecon {
 
     @PrePersist
     protected void onCreate() {
-        createdAt = new Date();
-        createdBy= MessageConstant.SYSTEM;
-//        createdOn= "0000:00:00";
+        LocalDateTime createdAts = LocalDateTime.now();
+        String timeOnly = createdAts.toLocalTime().format(DateTimeFormatter.ofPattern("HH:mm:ss"));
+        String dateOnly = createdAts.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+        createdAt = timeOnly;
+        createdOn=dateOnly;
     }
 
     public String getDate() {

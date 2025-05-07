@@ -20,18 +20,18 @@ public class PosAggregatorService {
     GeneralService generalService;
 
     @Transactional
-    public Response uploadFile(MultipartFormDataInput file, String paymentType, String pmId, String branchId, String transDate) {
+    public Response uploadFile(MultipartFormDataInput file, String paymentType, String pmId, String branchId, String transDate, String user) {
 
         Response response = null;
         BaseResponse baseResponse;
         try {
 
             // insert to header table
-            String parentId = generalService.saveHeaderPayment(file, paymentType, pmId, branchId, transDate);
+            String parentId = generalService.saveHeaderPayment(file, paymentType, pmId, branchId, transDate, user);
 
 
             // insert to detail
-            generalService.saveDetailPayment(file, paymentType, parentId, pmId, branchId, transDate);
+            generalService.saveDetailPayment(file, paymentType, parentId, pmId, branchId, transDate, user);
 
             baseResponse = new BaseResponse(MessageConstant.SUCCESS_CODE, MessageConstant.SUCCESS_MESSAGE);
             return Response.status(baseResponse.getResult()).entity(baseResponse).build();

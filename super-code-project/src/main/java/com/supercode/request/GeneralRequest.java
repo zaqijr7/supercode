@@ -12,6 +12,7 @@ public class GeneralRequest {
     private String transTime;
     private int offset;
     private int limit;
+    private String user;
 
     // Getter dan Setter
 
@@ -86,5 +87,13 @@ public class GeneralRequest {
 
     public void setEndDate(String endDate) {
         this.endDate = endDate;
+    }
+
+    public String getUser() {
+        return user;
+    }
+
+    public void setUser(String user) {
+        this.user = user;
     }
 }

@@ -63,7 +63,7 @@ public class PosAggregatorController {
 
             ObjectMapper objectMapper = new ObjectMapper();
             MyJsonData myJsonObject = objectMapper.readValue(jsonData, MyJsonData.class);
-            return posAggregatorService.uploadFile(input, myJsonObject.getPaymentType(), myJsonObject.getPmId(), myJsonObject.getBranchId(), myJsonObject.getTransDate());
+            return posAggregatorService.uploadFile(input, myJsonObject.getPaymentType(), myJsonObject.getPmId(), myJsonObject.getBranchId(), myJsonObject.getTransDate(), myJsonObject.getUser());
 
         } catch (JsonProcessingException e) {
             baseResponse = new BaseResponse(MessageConstant.BAD_REQUEST,MessageConstant.INVALID_JSON_FORMAT);

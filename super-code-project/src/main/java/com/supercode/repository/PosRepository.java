@@ -574,18 +574,20 @@ public class PosRepository implements PanacheRepository<DetailPaymentPos> {
         nativeQuery.executeUpdate();
     }
 
-    public void updateDataPos2(Long detailAggStr, String updatedVersion, Long s, String dateOnly, String timeOnly) {
+    public void updateDataPos2(Long detailAggStr, String updatedVersion, Long s, String dateOnly, String timeOnly, String user) {
         String query = "UPDATE detail_point_of_sales dpos " +
                 "SET flag_rekon_ecom = :newFlag, " +
                 " detail_id_agg= :detailIdAgg," +
-                " changed_on = :co, changed_at=:ca " +
+                " changed_on = :co, changed_at=:ca," +
+                " changed_by = :cb " +
                 "WHERE detail_pos_id = :detailPosId ";
         Query nativeQuery =  entityManager.createNativeQuery(query)
                 .setParameter("newFlag", updatedVersion)
                 .setParameter("detailIdAgg",detailAggStr)
                 .setParameter("co", dateOnly)
                 .setParameter("ca", timeOnly)
-                .setParameter("detailPosId",s);
+                .setParameter("detailPosId",s)
+                .setParameter("cb", user);
         nativeQuery.executeUpdate();
     }
 

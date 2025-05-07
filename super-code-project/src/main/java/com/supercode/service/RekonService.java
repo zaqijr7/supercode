@@ -258,6 +258,7 @@ public class RekonService {
             for (HeaderPayment hp : headerPayments) {
                 hp.setChangedAt(timeOnly);
                 hp.setChangedOn(now);
+                hp.setChangedBy(request.getUser());
                 headerPaymentRepository.updateHeaderChange(hp);
             }
 //            headerPaymentRepository.flush();

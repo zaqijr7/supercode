@@ -5,6 +5,7 @@ public class MyJsonData {
     private String branchId;
     private String pmId;
     private String paymentType;
+    private String user;
 
 
     // Constructor kosong (wajib untuk Jackson)
@@ -40,6 +41,14 @@ public class MyJsonData {
 
     public void setPaymentType(String paymentType) {
         this.paymentType = paymentType;
+    }
+
+    public String getUser() {
+        return user;
+    }
+
+    public void setUser(String user) {
+        this.user = user;
     }
 }
 

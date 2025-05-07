@@ -42,7 +42,7 @@ public class BankMutationService {
     HeaderPaymentRepository headerPaymentRepository;
 
     @Transactional
-    public void saveDetailBank(MultipartFormDataInput file, String pmId, String branchId, String parentId, String transDate) {
+    public void saveDetailBank(MultipartFormDataInput file, String pmId, String branchId, String parentId, String transDate, String user) {
         try {
             InputPart inputPart = generalService.getInputPart(file);
             MultivaluedMap<String, String> headers = inputPart.getHeaders();
@@ -52,9 +52,9 @@ public class BankMutationService {
                 String fileExtension = getFileExtension(fileName);
 
                 if (fileExtension.equalsIgnoreCase("csv")) {
-                    processCSV(inputStream, pmId, parentId, transDate);
+                    processCSV(inputStream, pmId, parentId, transDate, user);
                 } else if (fileExtension.equalsIgnoreCase("xlsx") || fileExtension.equalsIgnoreCase("xls")) {
-                    processExcel(inputStream, pmId, parentId, transDate);
+                    processExcel(inputStream, pmId, parentId, transDate, user);
                 } else {
                     throw new IllegalArgumentException("Unsupported file format: " + fileExtension);
                 }
@@ -64,7 +64,7 @@ public class BankMutationService {
         }
     }
 
-    private void processCSV(InputStream inputStream, String pmId, String parentId, String transDate) throws IOException, CsvValidationException {
+    private void processCSV(InputStream inputStream, String pmId, String parentId, String transDate, String user) throws IOException, CsvValidationException {
         try (CSVReader reader = new CSVReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8))) {
             String[] nextLine;
             boolean isFirstRow = true;
@@ -73,22 +73,22 @@ public class BankMutationService {
                     isFirstRow = false;
                     continue;
                 }
-                processRow(nextLine, pmId, parentId, transDate);
+                processRow(nextLine, pmId, parentId, transDate, user);
             }
         }
     }
 
-    private void processExcel(InputStream inputStream, String pmId, String parentId, String transDate) throws IOException {
+    private void processExcel(InputStream inputStream, String pmId, String parentId, String transDate, String user) throws IOException {
         try (Workbook workbook = new XSSFWorkbook(inputStream)) {
             Sheet sheet = workbook.getSheetAt(0);
             for (Row row : sheet) {
                 if (row.getRowNum() == 0) continue;
-                processRow(row, pmId, parentId,transDate);
+                processRow(row, pmId, parentId,transDate, user);
             }
         }
     }
 
-    private void processRow(Object row, String pmId, String parentId, String transDate) {
+    private void processRow(Object row, String pmId, String parentId, String transDate, String user) {
         try {
             String accountNo;
             String notes;
@@ -126,7 +126,7 @@ public class BankMutationService {
             bm.setDebitCredit(DebitCredit.valueOf(debitCredit));
             bm.setTransDate(java.sql.Date.valueOf(formattedTimeDate));
             bm.setParentId(parentId);
-
+            bm.setCreatedBy(user);
             bankMutationRepository.persist(bm);
 //            headerPaymentRepository.updateDate(parentId, formattedTimeDate);
         } catch (Exception e) {
@@ -169,7 +169,7 @@ public class BankMutationService {
         return "";
     }
 
-    public void saveDetailBankBca(MultipartFormDataInput file, String pmId, String branchId, String parentId, String transDate) {
+    public void saveDetailBankBca(MultipartFormDataInput file, String pmId, String branchId, String parentId, String transDate, String user) {
         try {
             InputPart inputPart = generalService.getInputPart(file);
             MultivaluedMap<String, String> headers = inputPart.getHeaders();
@@ -179,9 +179,9 @@ public class BankMutationService {
                 String fileExtension = getFileExtension(fileName);
 
                 if (fileExtension.equalsIgnoreCase("csv")) {
-                    processCSVBca(inputStream, pmId, parentId, transDate);
+                    processCSVBca(inputStream, pmId, parentId, transDate, user);
                 } else if (fileExtension.equalsIgnoreCase("xlsx") || fileExtension.equalsIgnoreCase("xls")) {
-                    processExcelBca(inputStream, pmId, parentId, transDate);
+                    processExcelBca(inputStream, pmId, parentId, transDate, user);
                 } else {
                     throw new IllegalArgumentException("Unsupported file format: " + fileExtension);
                 }
@@ -191,7 +191,7 @@ public class BankMutationService {
         }
     }
 
-    private void processExcelBca(InputStream inputStream, String pmId, String parentId, String transDate) throws IOException {
+    private void processExcelBca(InputStream inputStream, String pmId, String parentId, String transDate, String user) throws IOException {
         try (Workbook workbook = new XSSFWorkbook(inputStream)) {
             Sheet sheet = workbook.getSheetAt(0);
             String accountNo = "";
@@ -214,12 +214,12 @@ public class BankMutationService {
             // Mulai membaca data transaksi dari baris ke-7 ke bawah (asumsi format BCA)
             for (Row row : sheet) {
                 if (row.getRowNum() < 7) continue;
-                processRowBca(row, pmId, parentId, accountNo, transDate);
+                processRowBca(row, pmId, parentId, accountNo, transDate, user);
             }
         }
     }
 
-        private void processRowBca(Row row, String pmId, String parentId, String accountNo, String transDate) {
+        private void processRowBca(Row row, String pmId, String parentId, String accountNo, String transDate, String user) {
             try {
                 String notes = getCellValue(row.getCell(1));
                 String formattedTimeDate = generalService.getFormattedDate(row.getCell(0));
@@ -239,6 +239,7 @@ public class BankMutationService {
                 bm.setDebitCredit(DebitCredit.valueOf(debitCredit));
                 bm.setTransDate(java.sql.Date.valueOf(formattedTimeDate));
                 bm.setParentId(parentId);
+                bm.setCreatedBy(user);
                 bankMutationRepository.persist(bm);
 //                headerPaymentRepository.updateDate(parentId, formattedTimeDate);
             } catch (Exception e) {
@@ -248,7 +249,7 @@ public class BankMutationService {
 
 
 
-    public void processCSVBca(InputStream inputStream, String pmId, String parentId, String transDate) throws IOException, CsvValidationException {
+    public void processCSVBca(InputStream inputStream, String pmId, String parentId, String transDate, String user) throws IOException, CsvValidationException {
         List<String[]> csvData = new ArrayList<>();
         String accountNo = "";
         String period = "";
@@ -326,7 +327,7 @@ public class BankMutationService {
 
         for (int i = 1; i < csvData.size(); i++) {
             String[] row = csvData.get(i);
-            processRowCSVBca(row, pmId, parentId, accountNo, transDate);
+            processRowCSVBca(row, pmId, parentId, accountNo, transDate, user);
         }
     }
 
@@ -428,7 +429,7 @@ public class BankMutationService {
 
 
 
-    private void processRowCSVBca(String[] row, String pmId, String parentId, String accountNo, String transDate) {
+    private void processRowCSVBca(String[] row, String pmId, String parentId, String accountNo, String transDate, String user) {
         try {
             System.out.println("ini row "+ row.length);
             if (row.length == 1) {
@@ -457,9 +458,8 @@ public class BankMutationService {
             bm.setNotes(notes);
             bm.setAmount(grossAmount);
             bm.setDebitCredit(DebitCredit.valueOf(debitCredit));
+            bm.setCreatedBy(user);
             String parsedDate = parseDate(formattedTimeDate);
-            System.out.println("ini parse date "+ parsedDate);
-            System.out.println("ini transDate "+ transDate);
             if(parsedDate.equalsIgnoreCase(transDate)){
                 bm.setTransDate(java.sql.Date.valueOf(parsedDate));
                 bm.setParentId(parentId);

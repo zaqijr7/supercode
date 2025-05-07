@@ -124,10 +124,11 @@ public class BankMutationRepository implements PanacheRepository<BankMutation> {
 
 
 
-    public void updateFlagBank(String bankMutationId) {
+    public void updateFlagBank(String bankMutationId, String user) {
         entityManager.createNativeQuery(
-                        "update bank_mutation set flag_rekon_ecom = '1' where bank_mutation_id = ?1")
-                .setParameter(1, bankMutationId)
+                        "update bank_mutation set flag_rekon_ecom = '1', changed_by = ?1 where bank_mutation_id = ?2")
+                .setParameter(1, user)
+                .setParameter(2, bankMutationId)
                 .executeUpdate();
     }
 

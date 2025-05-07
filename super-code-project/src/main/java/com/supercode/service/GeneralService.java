@@ -56,7 +56,7 @@ public class GeneralService {
 
 
 
-    public String saveHeaderPayment(MultipartFormDataInput file, String paymentWay, String pmId, String branchId, String transDate) {
+    public String saveHeaderPayment(MultipartFormDataInput file, String paymentWay, String pmId, String branchId, String transDate, String user) {
         String parentId = generateRandomCode();
         Map<String, List<InputPart>> formDataMap = file.getFormDataMap();
         List<InputPart> fileParts = formDataMap.get("file");
@@ -73,6 +73,7 @@ public class GeneralService {
         headerPayment.setParentId(parentId);
         headerPayment.setBranchId(branchId);
         headerPayment.setTransDate(transDate);
+        headerPayment.setCreatedBy(user);
         headerPaymentRepository.persist(headerPayment);
         return parentId;
 
@@ -94,27 +95,27 @@ public class GeneralService {
         return "unknown_file";
     }
 
-    public void saveDetailPayment(MultipartFormDataInput file, String paymentType, String parentId, String pmId, String branchId, String transDate) {
+    public void saveDetailPayment(MultipartFormDataInput file, String paymentType, String parentId, String pmId, String branchId, String transDate, String user) {
         try {
             String paymentMethod = paymentMethodRepository.getPaymentMethodByPmId(pmId);
             if (paymentType.equalsIgnoreCase(MessageConstant.POS)) {
 //                saveDetailPos(file, parentId);
-                saveDetailDPos(file, parentId, branchId, transDate);
+                saveDetailDPos(file, parentId, branchId, transDate, user);
             }else if(paymentType.equalsIgnoreCase(MessageConstant.BANK)){
                 if(paymentMethod.equalsIgnoreCase("BCA")){
-                    bankMutationService.saveDetailBankBca(file, pmId, branchId, parentId, transDate);
-                }else bankMutationService.saveDetailBank(file, pmId, branchId, parentId, transDate);
+                    bankMutationService.saveDetailBankBca(file, pmId, branchId, parentId, transDate, user);
+                }else bankMutationService.saveDetailBank(file, pmId, branchId, parentId, transDate, user);
 
             }
             else {
 
                 if (paymentMethod.equalsIgnoreCase(MessageConstant.SHOPEEFOOD)) {
-                    saveDetailShopeeFood(file, pmId, parentId, branchId, transDate);
+                    saveDetailShopeeFood(file, pmId, parentId, branchId, transDate, user);
                 }
                 else if(paymentMethod.equalsIgnoreCase(MessageConstant.GRABFOOD)){
-                    saveDetailGrabFood(file, pmId, branchId, parentId, transDate);
+                    saveDetailGrabFood(file, pmId, branchId, parentId, transDate, user);
                 }else if(paymentMethod.equalsIgnoreCase(MessageConstant.GOFOOD)){
-                    saveDetailGoFood(file, pmId, branchId, parentId, transDate);
+                    saveDetailGoFood(file, pmId, branchId, parentId, transDate, user);
                 }
             }
         } catch (Exception e) {
@@ -122,7 +123,7 @@ public class GeneralService {
         }
     }
 
-    private void saveDetailDPos(MultipartFormDataInput file, String parentId, String branchIdHeader, String transDate) {
+    private void saveDetailDPos(MultipartFormDataInput file, String parentId, String branchIdHeader, String transDate, String user) {
         try {
             InputPart inputPart = getInputPart(file);
             try (InputStream inputStream = inputPart.getBody(InputStream.class, null);
@@ -139,14 +140,12 @@ public class GeneralService {
                     String branchName = row.getCell(8).getStringCellValue(); // Branch
                     String branchId = masterMerchantRepository.getBranchIdByBranchName(branchName);
                     if(!branchIdHeader.equalsIgnoreCase(branchId)){
-                        System.out.println("masukk kah");
                         continue;
                     }
 
 
                     String formattedDate = getDate(row.getCell(4)); // Sales Date
                     String formattedTime = getTime(row.getCell(5));
-                    System.out.println("hmmm " + formattedDate + " asdad "+ transDate);// Sales In Time
                     if(!formattedDate.equalsIgnoreCase(transDate)){
 
                         continue;
@@ -173,7 +172,8 @@ public class GeneralService {
                     detailPaymentPos.setTransTime(formattedTime);
                     detailPaymentPos.setGrossAmount(grossSales);
                     detailPaymentPos.setParentId(parentId);
-                    detailPaymentPos.setPayMethodAggregator(payMethodName); // kosong, tidak ada di Excel ini
+                    detailPaymentPos.setPayMethodAggregator(payMethodName);
+                    detailPaymentPos.setCreatedBy(user);// kosong, tidak ada di Excel ini
 
                     posRepository.persist(detailPaymentPos);
                 }
@@ -284,7 +284,7 @@ public class GeneralService {
         }
     }
 
-    private void saveDetailGrabFood(MultipartFormDataInput file, String pmId, String branchId, String parentId, String transDate) {
+    private void saveDetailGrabFood(MultipartFormDataInput file, String pmId, String branchId, String parentId, String transDate, String user) {
         try {
             InputPart inputPart = getInputPart(file);
             try (InputStream inputStream = inputPart.getBody(InputStream.class, null);
@@ -361,6 +361,7 @@ public class GeneralService {
                     dpa.setSettlementDate(formattedTimeDateSett);
                     dpa.setSettlementTime(formattedTimeSett);
                     dpa.setParentId(parentId);
+                    dpa.setCreatedBy(user);
                     detailPaymentAggregatorRepository.persist(dpa);
                 }
                 /*String getTransDate = detailPaymentAggregatorRepository.getTransDateByParentId(parentId);
@@ -445,7 +446,7 @@ public class GeneralService {
         }
     }
 
-    private void saveDetailShopeeFood(MultipartFormDataInput file, String pmId, String parentId, String branchId, String transDate) {
+    private void saveDetailShopeeFood(MultipartFormDataInput file, String pmId, String parentId, String branchId, String transDate, String user) {
         try {
             InputPart inputPart = getInputPart(file);
             try (InputStream inputStream = inputPart.getBody(InputStream.class, null);
@@ -500,6 +501,7 @@ public class GeneralService {
                     dpa.setParentId(parentId);
                     dpa.setSettlementDate(formattedTimeDateSett);
                     dpa.setSettlementTime(formattedTime);
+                    dpa.setCreatedBy(user);
                     detailPaymentAggregatorRepository.persist(dpa);
                 }
 // update header payment
@@ -735,11 +737,11 @@ public class GeneralService {
                             // Cocok, lakukan update
                             detailPaymentAggregatorRepository.updateDataReconAgg2Bank(
                                     (Long) agg.get("detailPaymentId"),
-                                    bank.get("bankMutationId").toString()
+                                    bank.get("bankMutationId").toString(), request.getUser()
                             );
 
                             // Hapus dari queueBank agar tidak digunakan dua kali
-                            bankMutationRepository.updateFlagBank( bank.get("bankMutationId").toString());
+                            bankMutationRepository.updateFlagBank( bank.get("bankMutationId").toString(), request.getUser());
                             iterator.remove();
                             matched = true;
                             break; // Stop iterasi setelah menemukan pasangan pertama
@@ -853,11 +855,11 @@ public class GeneralService {
                         for (Map<String, Object> agg : currentAggList) {
                             detailPaymentAggregatorRepository.updateDataReconAgg2Bank(
                                     (Long) agg.get("detailPaymentId"),
-                                    bank.get("bankMutationId").toString()
+                                    bank.get("bankMutationId").toString(), request.getUser()
                             );
                         }
                         // Update flag bank
-                        bankMutationRepository.updateFlagBank(bank.get("bankMutationId").toString());
+                        bankMutationRepository.updateFlagBank(bank.get("bankMutationId").toString(), request.getUser());
                         break; // break karena sudah match
                     }
                 }
@@ -877,7 +879,7 @@ public class GeneralService {
             logRecon.setBranchId(request.getBranchId());
             logRecon.setSubmittedAt(getTime(new Date()));
             logRecon.setDate(request.getTransDate());
-            System.out.println("ini yg mau disimpan "+logRecon );
+            logRecon.setCreatedBy(request.getUser());
             // Add validation if needed
             if(logRecon.getBranchId() == null) {
                 throw new IllegalArgumentException("Branch ID cannot be null");
@@ -941,10 +943,10 @@ public class GeneralService {
 
                     detailPaymentAggregatorRepository.updateDataAggWithChange(
                             (Long) agg.get("detailPaymentId"),
-                            updateMessage, dateOnly, timeOnly
+                            updateMessage, dateOnly, timeOnly, request.getUser()
                     );
                     posRepository.updateDataPos2((Long) agg.get("detailPaymentId"),
-                            updateMessage, (Long) pos.get("detailPosId"), dateOnly, timeOnly);
+                            updateMessage, (Long) pos.get("detailPosId"), dateOnly, timeOnly, request.getUser());
 
                     // Hapus dari queueBank agar tidak digunakan dua kali
                     iterator.remove();
@@ -988,7 +990,7 @@ public class GeneralService {
         }
     }
 
-    private void saveDetailGoFood(MultipartFormDataInput file, String pmId, String branchId, String parentId, String transDate) {
+    private void saveDetailGoFood(MultipartFormDataInput file, String pmId, String branchId, String parentId, String transDate, String user) {
         try {
             InputPart inputPart = getInputPart(file);
             try (InputStream inputStream = inputPart.getBody(InputStream.class, null);
@@ -1044,6 +1046,7 @@ public class GeneralService {
                     dpa.setSettlementDate(formattedTimeSett);
                     dpa.setSettlementTime(formattedTimSett);
                     dpa.setParentId(parentId);
+                    dpa.setCreatedBy(user);
                     detailPaymentAggregatorRepository.persist(dpa);
                 }
                 /*String getTransDate = detailPaymentAggregatorRepository.getTransDateByParentId(parentId);
