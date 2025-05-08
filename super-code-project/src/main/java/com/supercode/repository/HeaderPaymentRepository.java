@@ -109,10 +109,11 @@ public class HeaderPaymentRepository implements PanacheRepository<HeaderPayment>
 
     public void updateHeaderChange(HeaderPayment hp) {
         entityManager.createNativeQuery(
-                        "update header_payment set changed_at = ?1, changed_on = ?2 where parent_id = ?3")
+                        "update header_payment set changed_at = ?1, changed_on = ?2, changed_by = ?3 where parent_id = ?4")
                 .setParameter(1, hp.getChangedAt())
                 .setParameter(2, hp.getChangedOn())
-                .setParameter(3, hp.getParentId())
+                .setParameter(3, hp.getChangedBy())
+                .setParameter(4, hp.getParentId())
                 .executeUpdate();
     }
 

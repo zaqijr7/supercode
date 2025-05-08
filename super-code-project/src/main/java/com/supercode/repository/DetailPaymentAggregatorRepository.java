@@ -509,13 +509,14 @@ public class DetailPaymentAggregatorRepository implements PanacheRepository<com.
     }
 
 
-    public void updateDataReconAgg2Bank(Long paymentId, String bankMutationId) {
-        String query ="update detail_agregator_payment set flag_rekon_bank ='1', flag_id_bank= ?1 " +
-                "where detail_payment_id = ?2";
+    public void updateDataReconAgg2Bank(Long paymentId, String bankMutationId, String user) {
+        String query ="update detail_agregator_payment set flag_rekon_bank ='1', flag_id_bank= ?1, changed_by = ?2 " +
+                "where detail_payment_id = ?3";
         Query nativeQuery = entityManager.createNativeQuery(
                         query)
                 .setParameter(1, bankMutationId)
-                .setParameter(2, paymentId);
+                .setParameter(2, user)
+                .setParameter(3, paymentId);
         nativeQuery.executeUpdate();
     }
 
@@ -723,16 +724,18 @@ public class DetailPaymentAggregatorRepository implements PanacheRepository<com.
         return result;
     }
 
-    public void updateDataAggWithChange(Long detailPaymentId, String updateMessage, String now, String timeOnly) {
+    public void updateDataAggWithChange(Long detailPaymentId, String updateMessage, String now, String timeOnly, String user) {
         String query = "UPDATE detail_agregator_payment dpos " +
                 "SET flag_rekon_pos = :newFlag " +
-                " , changed_on = :co, changed_at = :ca " +
+                " , changed_on = :co, changed_at = :ca," +
+                " changed_by =: cb " +
                 "WHERE detail_payment_id = :detailPaymentId ";
         Query nativeQuery =  entityManager.createNativeQuery(query)
                 .setParameter("newFlag", updateMessage)
                 .setParameter("detailPaymentId",detailPaymentId)
                 .setParameter("co", now)
-                .setParameter("ca", timeOnly);
+                .setParameter("ca", timeOnly)
+                .setParameter("cb", user);
         nativeQuery.executeUpdate();
     }
 

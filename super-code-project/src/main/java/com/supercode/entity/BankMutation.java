@@ -182,8 +182,6 @@ public class BankMutation {
         String timeOnly = createdAts.toLocalTime().format(DateTimeFormatter.ofPattern("HH:mm:ss"));
 
         createdAt = timeOnly;
-
-        createdBy= MessageConstant.SYSTEM;
         createdOn=LocalDateTime.now();
     }
 }

@@ -96,7 +96,6 @@ public class DetailPaymentAggregator extends PanacheEntityBase {
         String timeOnly = createdAts.toLocalTime().format(DateTimeFormatter.ofPattern("HH:mm:ss"));
 
         createdAt = timeOnly;
-        createdBy= MessageConstant.SYSTEM;
         createdOn=LocalDateTime.now();
         flagRekonBank=MessageConstant.FALSE_VALUE;
         flagRekonPos=MessageConstant.FALSE_VALUE;

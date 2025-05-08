@@ -79,7 +79,6 @@ public class DetailPaymentPos {
         String timeOnly = createdAts.toLocalTime().format(DateTimeFormatter.ofPattern("HH:mm:ss"));
 
         createdAt = timeOnly;
-        createdBy= MessageConstant.SYSTEM;
         createdOn=LocalDate.now();
         flagManual=MessageConstant.FALSE_VALUE;
         flagRekonEcom=MessageConstant.FALSE_VALUE;
