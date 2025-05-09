@@ -38,10 +38,17 @@ public class AuthController {
                     .groups(Collections.singleton(user.getRole()))
                     .sign();
 
-            return Response.ok(Map.of("token", token)).build();
+            return Response.ok(Map.of(
+                    "token", token,
+                    "user", user.getUser(),
+                    "status", 200,
+                    "result", "Login successfully"
+            )).build();
+
         } else {
             return Response.status(Response.Status.UNAUTHORIZED)
-                    .entity(Map.of("error", "Invalid credentials"))
+                    .entity(Map.of("status", 500,
+                            "result", "Login Failed"))
                     .build();
         }
     }
