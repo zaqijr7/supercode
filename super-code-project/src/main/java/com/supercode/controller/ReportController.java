@@ -2,6 +2,7 @@ package com.supercode.controller;
 
 import com.supercode.service.ReportService;
 import com.supercode.request.GeneralRequest;
+import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.POST;
@@ -21,12 +22,14 @@ public class ReportController {
 
     @POST
     @Path("/report/recon-pos-ecom")
+    @RolesAllowed("user")
     public Response reportReconPosEcom(GeneralRequest request) {
         return reportService.getDataReportPosVsEcom(request);
     }
 
     @POST
     @Path("/report/recon-pos-ecom/ext")
+    @RolesAllowed("user")
     public Response reportReconPosEcom2(GeneralRequest request) {
         return reportService.getDataReportPosVsEcom2(request);
     }

@@ -2,6 +2,7 @@ package com.supercode.controller;
 
 import com.supercode.request.GeneralRequest;
 import com.supercode.service.RekonService;
+import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.POST;
@@ -21,18 +22,21 @@ public class RekonController {
 
     @POST
     @Path("/recon/process")
+    @RolesAllowed("user")
     public Response rekonProcess(GeneralRequest request) {
         return rekonService.rekonProcess(request);
     }
 
     @POST
     @Path("/recon/summary")
+    @RolesAllowed("user")
     public Response rekonSummary(GeneralRequest request) {
         return rekonService.rekonSummary(request);
     }
 
     @POST
     @Path("/recon/summary/data")
+    @RolesAllowed("user")
     public Response rekonSummaryData(GeneralRequest request) {
         return rekonService.rekonSummaryData(request);
     }
@@ -43,18 +47,21 @@ public class RekonController {
 
     @POST
     @Path("recon/process/compare-branch")
+    @RolesAllowed("user")
     public Response rekonProcessCompareBranch(GeneralRequest request) {
         return rekonService.rekonProcessCompareBranch(request);
     }
 
     @POST
     @Path("/recon/batch-process")
+    @RolesAllowed("user")
     public Response rekonBatchProcess(GeneralRequest request) {
         return rekonService.rekonBatchProcess(request);
     }
 
     @POST
     @Path("recon/bank-aggregator")
+    @RolesAllowed("user")
     public Response reconBankAggregator(GeneralRequest request) {
         return rekonService.reconBankAggregator(request);
     }
