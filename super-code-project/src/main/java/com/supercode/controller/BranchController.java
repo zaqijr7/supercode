@@ -3,6 +3,7 @@ package com.supercode.controller;
 import com.supercode.request.GeneralRequest;
 import com.supercode.service.BranchService;
 import com.supercode.service.RekonService;
+import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.POST;
@@ -24,12 +25,14 @@ public class BranchController {
 
     @POST
     @Path("/branch/list")
+    @RolesAllowed("user")
     public Response rekonProcess() {
         return branchService.getAllBranch();
     }
 
     @POST
     @Path("/rekon/batch")
+    @RolesAllowed("user")
     public Response rekonProcess2(GeneralRequest request) {
 
          return rekonService.rekonBatchProcess(request);

@@ -9,6 +9,7 @@ import com.supercode.response.BaseResponse;
 import com.supercode.service.PosAggregatorService;
 import com.supercode.service.RekonService;
 import com.supercode.util.MessageConstant;
+import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
@@ -43,6 +44,7 @@ public class PosAggregatorController {
     @POST
     @Path("/upload/file")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
+    @RolesAllowed("user")
     public Response uploadHeaderPos(@MultipartForm MultipartFormDataInput input) {
         BaseResponse baseResponse;
         try {
