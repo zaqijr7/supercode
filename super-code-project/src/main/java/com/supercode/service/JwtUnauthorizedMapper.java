@@ -26,4 +26,6 @@ public class JwtUnauthorizedMapper implements ExceptionMapper<NotAuthorizedExcep
                 .type(MediaType.APPLICATION_JSON)
                 .build();
     }
+
+
 }
