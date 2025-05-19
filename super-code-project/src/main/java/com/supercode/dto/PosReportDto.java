@@ -143,5 +143,29 @@ public class PosReportDto {
             this.diff = diff;
         }
     }
+
+    public String getInAggregator() {
+        return inAggregator;
+    }
+
+    public String getStatusInBank() {
+        return statusInBank;
+    }
+
+    public BigDecimal getGrossAmountAgg() {
+        return grossAmountAgg;
+    }
+
+    public void setGrossAmountAgg(BigDecimal grossAmountAgg) {
+        this.grossAmountAgg = grossAmountAgg;
+    }
+
+    public BigDecimal getNetAmountAgg() {
+        return netAmountAgg;
+    }
+
+    public void setNetAmountAgg(BigDecimal netAmountAgg) {
+        this.netAmountAgg = netAmountAgg;
+    }
 }
 
