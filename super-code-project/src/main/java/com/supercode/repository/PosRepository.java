@@ -752,6 +752,8 @@ public class PosRepository implements PanacheRepository<DetailPaymentPos> {
             String payMethodName;
 
             if (results.isEmpty()) {
+                flagRekonEcom = "-";
+                flagReconBank="-";
                 payMethodName = payMethod; // fallback jika tidak ditemukan
             } else {
                 payMethodName = results.get(0).toString(); // ambil hasil pertama

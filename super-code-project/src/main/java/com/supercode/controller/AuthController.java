@@ -33,9 +33,14 @@ public class AuthController {
         User user = userService.authenticate(username, password);
         if (user != null) {
             // Sign token using HMAC with the secret key
+            long now = System.currentTimeMillis() / 1000; // detik
+            long exp = now + (100 * 60); // 100 menit dari sekarang
+
+            // Buat token dengan masa berlaku 100 menit
             String token = Jwt.issuer("supercode-auth")
                     .upn(user.getUser())
                     .groups(Collections.singleton(user.getRole()))
+                    .claim("exp", exp) // set waktu kedaluwarsa
                     .sign();
 
             return Response.ok(Map.of(
