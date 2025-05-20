@@ -149,8 +149,9 @@ public class TransactionService {
                 transactionList.setTransactionSource(transactionSource);
                 BigDecimal amount = detailPaymentAggregatorRepository.getAmountByParentIdByRequest(request, pmId, "gross_amount");
                 BigDecimal amountNet = detailPaymentAggregatorRepository.getAmountByParentIdByRequest(request, pmId, "net_amount");
-                allNettAmount.add(amountNet);
-                allGrossAmount.add(amount);
+
+                allNettAmount = allNettAmount.add(amountNet);
+                allGrossAmount = allGrossAmount.add(amount);
                 transactionList.setAmount(amount);
                 transactionLists.add(transactionList);
             }
