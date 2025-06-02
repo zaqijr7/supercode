@@ -8,6 +8,7 @@ import com.supercode.util.MessageConstant;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
+import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -15,6 +16,7 @@ import org.hibernate.event.spi.SaveOrUpdateEvent;
 import org.jboss.resteasy.plugins.providers.multipart.InputPart;
 import org.jboss.resteasy.plugins.providers.multipart.MultipartFormDataInput;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigDecimal;
 import java.text.DecimalFormat;
@@ -52,6 +54,9 @@ public class GeneralService {
 
     @Inject
     BankMutationService bankMutationService;
+
+    @Inject
+    GeneralService generalService;
 
 
 
@@ -106,6 +111,9 @@ public class GeneralService {
                     bankMutationService.saveDetailBankBca(file, pmId, branchId, parentId, transDate, user);
                 }else bankMutationService.saveDetailBank(file, pmId, branchId, parentId, transDate, user);
 
+            }else if(paymentType.equalsIgnoreCase("ESB")){
+                System.out.println("masukk ESB");
+                saveDetailEsb(file, pmId, branchId, parentId, transDate, user);
             }
             else {
 
@@ -122,6 +130,177 @@ public class GeneralService {
 
         }
     }
+
+    private void saveDetailEsb(MultipartFormDataInput file, String pmId, String branchId, String parentId, String transDate, String user) {
+        try {
+            Map<String, List<InputPart>> formDataMap = file.getFormDataMap();
+            List<InputPart> inputParts = formDataMap.get("file"); // pastikan key-nya sesuai dengan nama field input file
+
+            if (inputParts != null && !inputParts.isEmpty()) {
+                InputPart inputPart = inputParts.get(0);
+
+                MultivaluedMap<String, String> headers = inputPart.getHeaders();
+                String fileName = getFileName(inputPart); // ✅ parameter sekarang benar
+
+                try (InputStream inputStream = inputPart.getBody(InputStream.class, null)) {
+                    processExcelESB(inputStream, pmId, parentId, transDate, user, fileName, branchId);
+                }
+            } else {
+                System.out.println("No file part found in the request.");
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+
+    private void processExcelESB(InputStream inputStream, String pmId, String parentId, String transDate, String user, String fileName, String branchId) throws IOException {
+        try (Workbook workbook = new XSSFWorkbook(inputStream)) {
+            Sheet sheet = workbook.getSheetAt(0);
+            String accountNo = "";
+            for (Row row : sheet) {
+                if (row.getRowNum() < 13) continue;
+
+                // Debug isi baris transaksi dengan hasil formula
+                StringBuilder sb = new StringBuilder("Transaksi Row " + row.getRowNum() + ": ");
+                for (int j = 0; j < row.getLastCellNum(); j++) {
+                    sb.append(getCellValue(row.getCell(j), workbook)).append(" | ");
+                }
+                System.out.println(sb.toString());
+
+                // Proses baris transaksi
+                processRowEsb(row, pmId, parentId, accountNo, transDate, user, branchId, workbook);
+            }
+        }
+    }
+
+
+    private String getCellValue(Cell cell, Workbook workbook) {
+        if (cell == null) return "";
+
+        try {
+            if (cell.getCellType() == CellType.FORMULA) {
+                FormulaEvaluator evaluator = workbook.getCreationHelper().createFormulaEvaluator();
+                try {
+                    CellValue evaluated = evaluator.evaluate(cell);
+                    switch (evaluated.getCellType()) {
+                        case STRING:
+                            return evaluated.getStringValue();
+                        case NUMERIC:
+                            if (DateUtil.isCellDateFormatted(cell)) {
+                                return new SimpleDateFormat("yyyy-MM-dd").format(cell.getDateCellValue());
+                            }
+                            return String.valueOf((long) evaluated.getNumberValue());
+                        case BOOLEAN:
+                            return String.valueOf(evaluated.getBooleanValue());
+                        default:
+                            return "";
+                    }
+                } catch (Exception e) {
+                    // Jika formula referensi eksternal, gunakan nilai cache (jika ada)
+                    switch (cell.getCachedFormulaResultType()) {
+                        case STRING:
+                            return cell.getStringCellValue();
+                        case NUMERIC:
+                            return String.valueOf((long) cell.getNumericCellValue());
+                        case BOOLEAN:
+                            return String.valueOf(cell.getBooleanCellValue());
+                        default:
+                            return "";
+                    }
+                }
+            }
+
+            // Bukan formula
+            switch (cell.getCellType()) {
+                case STRING:
+                    return cell.getStringCellValue();
+                case NUMERIC:
+                    if (DateUtil.isCellDateFormatted(cell)) {
+                        return new SimpleDateFormat("yyyy-MM-dd").format(cell.getDateCellValue());
+                    } else {
+                        return String.valueOf((long) cell.getNumericCellValue());
+                    }
+                case BOOLEAN:
+                    return String.valueOf(cell.getBooleanCellValue());
+                case BLANK:
+                default:
+                    return "";
+            }
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            return "";
+        }
+    }
+
+
+
+
+
+    private void processRowEsb(Row row, String pmId, String parentId, String accountNo, String transDate, String user, String branchId, Workbook workbook) {
+        try {
+            if (row.getRowNum() == 0) return;
+
+            Cell timeTransCell = row.getCell(1);
+            String formattedTimeDate = getDate(timeTransCell);
+            if (!formattedTimeDate.equalsIgnoreCase(transDate)) return;
+
+            String formattedTime = getTime(timeTransCell);
+
+            Cell grossAmountCell = row.getCell(9);  // Grand Total
+            BigDecimal grossAmount = parseBigDecimalFromCell(grossAmountCell, workbook);
+
+            Cell nettAmountCell = row.getCell(16);  // Disburse
+            BigDecimal nettAmount = parseBigDecimalFromCell(nettAmountCell, workbook);
+
+            String transId = getCellValue(row.getCell(5), workbook);
+
+            DetailPaymentAggregator dpa = new DetailPaymentAggregator();
+            dpa.setBranchId(branchId);
+            dpa.setPmId(pmId);
+            dpa.setTransDate(formattedTimeDate);
+            dpa.setTransId(transId);
+            dpa.setTransTime(formattedTime);
+            dpa.setGrossAmount(grossAmount);
+            dpa.setNetAmount(nettAmount);
+            dpa.setPaymentId(transId + pmId);
+            dpa.setSettlementDate(formattedTimeDate);
+            dpa.setSettlementTime(formattedTime);
+            dpa.setParentId(parentId);
+            dpa.setCreatedBy(user);
+
+            System.out.println("mau di save gk");
+            detailPaymentAggregatorRepository.persist(dpa);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private BigDecimal parseBigDecimalFromCell(Cell cell, Workbook workbook) {
+        if (cell == null) return BigDecimal.ZERO;
+
+        try {
+            if (cell.getCellType() == CellType.FORMULA) {
+                FormulaEvaluator evaluator = workbook.getCreationHelper().createFormulaEvaluator();
+                CellValue value = evaluator.evaluate(cell);
+                if (value.getCellType() == CellType.NUMERIC) {
+                    return BigDecimal.valueOf(value.getNumberValue());
+                } else if (value.getCellType() == CellType.STRING) {
+                    return new BigDecimal(value.getStringValue());
+                }
+            } else if (cell.getCellType() == CellType.NUMERIC) {
+                return BigDecimal.valueOf(cell.getNumericCellValue());
+            } else if (cell.getCellType() == CellType.STRING) {
+                return new BigDecimal(cell.getStringCellValue());
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return BigDecimal.ZERO;
+    }
+
 
     private void saveDetailDPos(MultipartFormDataInput file, String parentId, String branchIdHeader, String transDate, String user) {
         try {
@@ -518,52 +697,96 @@ public class GeneralService {
             return null;
         }
 
-        if (timeTransCell.getCellType() == CellType.NUMERIC && DateUtil.isCellDateFormatted(timeTransCell)) {
-            Date dateTime = timeTransCell.getDateCellValue();
-            SimpleDateFormat timeFormatDate = new SimpleDateFormat("yyyy-MM-dd");
-            return timeFormatDate.format(dateTime);
+        if (timeTransCell.getCellType() == CellType.NUMERIC) {
+            if (DateUtil.isCellDateFormatted(timeTransCell)) {
+                // Format cell sebagai date
+                Date dateTime = timeTransCell.getDateCellValue();
+                return new SimpleDateFormat("yyyy-MM-dd").format(dateTime);
+            } else {
+                double numericValue = timeTransCell.getNumericCellValue();
+                // Serial number untuk 1 Jan 2000 = 36526
+                if (numericValue > 36500) {
+                    Date possibleDate = DateUtil.getJavaDate(numericValue);
+                    return new SimpleDateFormat("yyyy-MM-dd").format(possibleDate);
+                } else {
+                    System.out.println("Cell numeric terlalu kecil untuk dianggap sebagai tanggal: " + numericValue);
+                    return null;
+                }
+            }
         } else if (timeTransCell.getCellType() == CellType.STRING) {
             String rawValue = timeTransCell.getStringCellValue().trim();
 
-            // Coba parse string ISO 8601 atau format serupa
-            try {
-                // Contoh input: 2023-04-19T16:25:23
-                SimpleDateFormat inputFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
-                Date parsedDate = inputFormat.parse(rawValue);
+            // Daftar format tanggal yang mungkin
+            String[] patterns = {
+                    "yyyy-MM-dd'T'HH:mm:ss",
+                    "yyyy-MM-dd HH:mm:ss",
+                    "yyyy/MM/dd HH:mm:ss",
+                    "yyyy-MM-dd"
+            };
 
-                SimpleDateFormat outputFormat = new SimpleDateFormat("yyyy-MM-dd");
-                return outputFormat.format(parsedDate);
-            } catch (ParseException e) {
-                // Jika gagal parse, kembalikan string mentah (atau bisa juga return null)
-                return rawValue;
+            for (String pattern : patterns) {
+                try {
+                    SimpleDateFormat inputFormat = new SimpleDateFormat(pattern);
+                    Date parsedDate = inputFormat.parse(rawValue);
+                    return new SimpleDateFormat("yyyy-MM-dd").format(parsedDate);
+                } catch (ParseException e) {
+                    // Lanjut ke pola berikutnya
+                }
             }
-        } else {
+
+            // Jika parsing gagal semua, return raw value atau null
+            System.out.println("Gagal parse string date: " + rawValue);
             return null;
         }
-    }
 
-
-    private String getTime(Cell timeTransCell) {
-        if (timeTransCell == null) return null;
-
-        if (timeTransCell.getCellType() == CellType.NUMERIC) {
-            Date date = timeTransCell.getDateCellValue();
-            return new SimpleDateFormat("HH:mm:ss").format(date);
-        } else if (timeTransCell.getCellType() == CellType.STRING) {
-            String timeString = timeTransCell.getStringCellValue().trim();
-            if (timeString.matches("\\d{2}:\\d{2}:\\d{2}")) {
-                return timeString;
-            }
-            try {
-                LocalDateTime dateTime = LocalDateTime.parse(timeString);
-                return dateTime.toLocalTime().toString();
-            } catch (DateTimeParseException e) {
-                System.out.println("Invalid time format: " + timeString);
-                return null;
-            }
-        }
+        // Tipe cell tidak didukung
         return null;
     }
+
+
+
+
+    private String getTime(Cell timeCell) {
+        if (timeCell == null) {
+            return null;
+        }
+
+        if (timeCell.getCellType() == CellType.NUMERIC) {
+            if (DateUtil.isCellDateFormatted(timeCell)) {
+                Date dateTime = timeCell.getDateCellValue();
+                return new SimpleDateFormat("HH:mm:ss").format(dateTime);
+            } else {
+                double numericValue = timeCell.getNumericCellValue();
+
+                // Cek apakah angka cukup besar untuk dianggap sebagai waktu dari serial number Excel
+                if (numericValue > 0.0) {
+                    Date possibleDate = DateUtil.getJavaDate(numericValue);
+                    return new SimpleDateFormat("HH:mm:ss").format(possibleDate);
+                } else {
+                    System.out.println("Cell numeric terlalu kecil untuk dianggap sebagai waktu: " + numericValue);
+                    return null;
+                }
+            }
+        } else if (timeCell.getCellType() == CellType.STRING) {
+            String rawValue = timeCell.getStringCellValue().trim();
+            try {
+                // Coba parse sebagai ISO datetime format
+                Date parsedDate = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss").parse(rawValue);
+                return new SimpleDateFormat("HH:mm:ss").format(parsedDate);
+            } catch (ParseException e1) {
+                try {
+                    // Coba parse sebagai datetime biasa
+                    Date parsedDate = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").parse(rawValue);
+                    return new SimpleDateFormat("HH:mm:ss").format(parsedDate);
+                } catch (ParseException e2) {
+                    return rawValue; // fallback ke raw jika tidak bisa diparse
+                }
+            }
+        }
+
+        return null;
+    }
+
 
 
 
@@ -868,7 +1091,65 @@ public class GeneralService {
     }
 
 
+    public void reconPosWithEBS(GeneralRequest request) {
+        List<String> pmIds = headerPaymentRepository.getPaymentMethodsByRequest(request);
+        String transDate = request.getTransDate();
 
+        for (String pmId : pmIds) {
+            request.setTransDate(transDate);
+            request.setPmId(pmId);
+
+            String payMeth = paymentMethodRepository.getPaymentMethodByPmId(pmId);
+            List<Map<String, Object>> dataAgg = detailPaymentAggregatorRepository.getDataAggGoTo(request, payMeth);
+
+            System.out.println("data agg: " + dataAgg.size());
+
+            // Grouping dataAgg by settlement date
+            Map<String, List<Map<String, Object>>> aggBySettDate = new HashMap<>();
+            for (Map<String, Object> agg : dataAgg) {
+                String settDate = agg.get("settDate").toString();
+                aggBySettDate.computeIfAbsent(settDate, k -> new ArrayList<>()).add(agg);
+            }
+
+            for (String settDate : aggBySettDate.keySet()) {
+                request.setTransDate(settDate);
+                System.out.println("get transdate: " + request.getTransDate());
+
+                List<Map<String, Object>> dataBank = bankMutationRepository.getDataBank(request, payMeth);
+                System.out.println("data bank: " + dataBank.size());
+
+                BigDecimal totalAggAmount = BigDecimal.ZERO;
+                List<Map<String, Object>> currentAggList = aggBySettDate.get(settDate);
+                for (Map<String, Object> agg : currentAggList) {
+                    totalAggAmount = totalAggAmount.add((BigDecimal) agg.get("netAmount"));
+                }
+
+                for (Map<String, Object> bank : dataBank) {
+                    BigDecimal bankAmount = (BigDecimal) bank.get("netAmount");
+
+                    // Khusus ShopeeFood: tidak peduli tanggal
+                    if (payMeth.equalsIgnoreCase(MessageConstant.SHOPEEFOOD)) {
+                        totalAggAmount = dataAgg.stream()
+                                .map(a -> (BigDecimal) a.get("netAmount"))
+                                .reduce(BigDecimal.ZERO, BigDecimal::add);
+                    }
+
+                    if (totalAggAmount.compareTo(bankAmount) == 0) {
+                        // Update detail aggregator
+                        for (Map<String, Object> agg : currentAggList) {
+                            detailPaymentAggregatorRepository.updateDataReconAgg2Bank(
+                                    (Long) agg.get("detailPaymentId"),
+                                    bank.get("bankMutationId").toString(), request.getUser()
+                            );
+                        }
+                        // Update flag bank
+                        bankMutationRepository.updateFlagBank(bank.get("bankMutationId").toString(), request.getUser());
+                        break; // break karena sudah match
+                    }
+                }
+            }
+        }
+    }
 
     @Transactional(Transactional.TxType.REQUIRES_NEW)
     public Response saveDataLog(GeneralRequest request) {

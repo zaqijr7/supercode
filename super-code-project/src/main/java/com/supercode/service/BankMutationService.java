@@ -134,7 +134,7 @@ public class BankMutationService {
         }
     }
 
-    private String getCellValue(Cell cell) {
+    String getCellValue(Cell cell) {
         if (cell == null) return "";
         return switch (cell.getCellType()) {
             case STRING -> cell.getStringCellValue().trim();
@@ -143,7 +143,7 @@ public class BankMutationService {
         };
     }
 
-    private double getNumericCellValue(Cell cell) {
+    double getNumericCellValue(Cell cell) {
         if (cell == null) return 0;
         return switch (cell.getCellType()) {
             case NUMERIC -> cell.getNumericCellValue();
