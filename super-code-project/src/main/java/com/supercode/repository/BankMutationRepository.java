@@ -85,6 +85,8 @@ public class BankMutationRepository implements PanacheRepository<BankMutation> {
             notesLike = "dompet anak bangsa";
         } else if (payMeth.equalsIgnoreCase(MessageConstant.SHOPEEFOOD)) {
             notesLike = "AIRPAY";
+        }else if(payMeth.equalsIgnoreCase("QRIS (ESB)")){
+            notesLike = "SINAR DIGITAL TERD";
         }
 
         // UPDATE flag_rekon_ecom terlebih dahulu

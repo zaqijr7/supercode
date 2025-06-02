@@ -933,31 +933,26 @@ public class GeneralService {
         for(String pmId : pmIds){
             request.setPmId(pmId);
             String payMeth = paymentMethodRepository.getPaymentMethodByPmId(pmId);
-            if(payMeth.equalsIgnoreCase(MessageConstant.GOPAY) || payMeth.equalsIgnoreCase(MessageConstant.GOFOOD) || payMeth.equalsIgnoreCase(MessageConstant.SHOPEEFOOD) || payMeth.equalsIgnoreCase(MessageConstant.GRABFOOD)){
+            if(payMeth.equalsIgnoreCase(MessageConstant.GOPAY)
+                    || payMeth.equalsIgnoreCase("QRIS (ESB)") || payMeth.equalsIgnoreCase(MessageConstant.GOFOOD) || payMeth.equalsIgnoreCase(MessageConstant.SHOPEEFOOD) || payMeth.equalsIgnoreCase(MessageConstant.GRABFOOD)){
                 reconBankAggregatorForGoTo(request);
-            }else{
+            }
+            else{
                 List<BigDecimal> netAmountBank = bankMutationRepository.getAmountBank(request, payMeth);
                 List<Map<String, Object>> dataBank = bankMutationRepository.getDataBank(request, payMeth);
                 List<Map<String, Object>> dataAgg = detailPaymentAggregatorRepository.getDataAgg(request, netAmountBank, payMeth);
-                System.out.println(dataBank.size());
-                System.out.println(dataAgg.size());
-                // Gunakan LinkedList agar bisa menghapus elemen pertama setelah match
                 LinkedList<Map<String, Object>> queueBank = new LinkedList<>(dataBank);
 
                 for (Map<String, Object> agg : dataAgg) {
 
                     BigDecimal aggAmount = (BigDecimal) agg.get("netAmount");
-                    System.out.println("ini agg amount "+ aggAmount);
                     boolean matched = false;
 
                     Iterator<Map<String, Object>> iterator = queueBank.iterator();
                     while (iterator.hasNext()) {
                         Map<String, Object> bank = iterator.next();
                         BigDecimal bankAmount = (BigDecimal) bank.get("netAmount");
-                        System.out.println("ini bank amount "+ bankAmount);
                         if (aggAmount.compareTo(bankAmount) == 0) {
-                            System.out.println("cocok "+ bank.get("bankMutationId").toString());
-                            // Cocok, lakukan update
                             detailPaymentAggregatorRepository.updateDataReconAgg2Bank(
                                     (Long) agg.get("detailPaymentId"),
                                     bank.get("bankMutationId").toString(), request.getUser()
@@ -979,6 +974,7 @@ public class GeneralService {
 
         }
     }
+
 
     /*public void reconBankAggregatorForGoTo(GeneralRequest request) {
         List<String> pmIds = headerPaymentRepository.getPaymentMethodByDate(request.getTransDate());
@@ -1052,7 +1048,7 @@ public class GeneralService {
 
             for (String settDate : aggBySettDate.keySet()) {
                 request.setTransDate(settDate);
-                System.out.println("get transdate: " + request.getTransDate());
+                System.out.println("get transdate2: " + request.getTransDate());
 
                 List<Map<String, Object>> dataBank = bankMutationRepository.getDataBank(request, payMeth);
                 System.out.println("data bank: " + dataBank.size());
