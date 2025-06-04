@@ -243,6 +243,7 @@ public class RekonService {
 
 
             // function 2.5 recon ecommerce to bank
+            System.out.println("ini pas mau rekon bank "+ request.getTransDate());
             generalService.reconBankAggregator(request);
             // function 2.3
             request.setTransDate(transDate);

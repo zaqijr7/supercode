@@ -695,7 +695,8 @@ public class DetailPaymentAggregatorRepository implements PanacheRepository<com.
             LocalDate settlementDate = LocalDate.parse(row[2].toString().substring(0, 10));
             if (payMeth.equalsIgnoreCase(MessageConstant.SHOPEEFOOD)) {
                 settlementDate = settlementDate.plusDays(1);
-            } else if (payMeth.equalsIgnoreCase(MessageConstant.GRABFOOD)) {
+            } else if (payMeth.equalsIgnoreCase(MessageConstant.GRABFOOD)
+            || payMeth.equalsIgnoreCase("QRIS (ESB)")) {
                 settlementDate = settlementDate;
             } else {
                 settlementDate = switch (settlementDate.getDayOfWeek()) {
@@ -704,7 +705,7 @@ public class DetailPaymentAggregatorRepository implements PanacheRepository<com.
                     default -> settlementDate.plusDays(1);
                 };
             }
-
+            System.out.println("ini settdate "+ settlementDate.toString());
             map.put("settDate", settlementDate.toString());
             return map;
         }).collect(Collectors.toList());
@@ -728,7 +729,7 @@ public class DetailPaymentAggregatorRepository implements PanacheRepository<com.
         String query = "UPDATE detail_agregator_payment dpos " +
                 "SET flag_rekon_pos = :newFlag " +
                 " , changed_on = :co, changed_at = :ca," +
-                " changed_by =: cb " +
+                " changed_by = :cb " +
                 "WHERE detail_payment_id = :detailPaymentId ";
         Query nativeQuery =  entityManager.createNativeQuery(query)
                 .setParameter("newFlag", updateMessage)
