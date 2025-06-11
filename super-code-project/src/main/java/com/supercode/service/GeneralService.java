@@ -112,7 +112,6 @@ public class GeneralService {
                 }else bankMutationService.saveDetailBank(file, pmId, branchId, parentId, transDate, user);
 
             }else if(paymentType.equalsIgnoreCase("ESB")){
-                System.out.println("masukk ESB");
                 saveDetailEsb(file, pmId, branchId, parentId, transDate, user);
             }
             else {
@@ -134,16 +133,12 @@ public class GeneralService {
     private void saveDetailEsb(MultipartFormDataInput file, String pmId, String branchId, String parentId, String transDate, String user) {
         try {
             Map<String, List<InputPart>> formDataMap = file.getFormDataMap();
-            List<InputPart> inputParts = formDataMap.get("file"); // pastikan key-nya sesuai dengan nama field input file
+            List<InputPart> inputParts = formDataMap.get("file");
 
             if (inputParts != null && !inputParts.isEmpty()) {
                 InputPart inputPart = inputParts.get(0);
-
-                MultivaluedMap<String, String> headers = inputPart.getHeaders();
-                String fileName = getFileName(inputPart); // ✅ parameter sekarang benar
-
                 try (InputStream inputStream = inputPart.getBody(InputStream.class, null)) {
-                    processExcelESB(inputStream, pmId, parentId, transDate, user, fileName, branchId);
+                    processExcelESB(inputStream, pmId, parentId, transDate, user, branchId);
                 }
             } else {
                 System.out.println("No file part found in the request.");
@@ -154,24 +149,21 @@ public class GeneralService {
         }
     }
 
-
-    private void processExcelESB(InputStream inputStream, String pmId, String parentId, String transDate, String user, String fileName, String branchId) throws IOException {
+    private void processExcelESB(InputStream inputStream, String pmId, String parentId, String transDate, String user, String branchId) throws IOException {
         try (Workbook workbook = new XSSFWorkbook(inputStream)) {
             Sheet sheet = workbook.getSheetAt(0);
-            String accountNo = "";
+
+            Row disburseRow = sheet.getRow(1);
+            String disburseDate = getCellValue(disburseRow.getCell(1), workbook);
+            System.out.println("Disburse Date: " + disburseDate);
             for (Row row : sheet) {
                 if (row.getRowNum() < 13) continue;
-
-                // Debug isi baris transaksi dengan hasil formula
-                StringBuilder sb = new StringBuilder("Transaksi Row " + row.getRowNum() + ": ");
-                for (int j = 0; j < row.getLastCellNum(); j++) {
-                    sb.append(getCellValue(row.getCell(j), workbook)).append(" | ");
+                if(getCellValue(row.getCell(0), workbook).isEmpty()){
+                    break;
                 }
-                System.out.println(sb.toString());
-
-                // Proses baris transaksi
-                processRowEsb(row, pmId, parentId, accountNo, transDate, user, branchId, workbook);
+                processRowEsb(row, pmId, parentId,disburseDate, user, branchId, workbook, transDate);
             }
+            System.out.println("successfully save  data");
         }
     }
 
@@ -238,14 +230,17 @@ public class GeneralService {
 
 
 
-    private void processRowEsb(Row row, String pmId, String parentId, String accountNo, String transDate, String user, String branchId, Workbook workbook) {
+    private void processRowEsb(Row row, String pmId, String parentId, String disburseDate, String user, String branchId, Workbook workbook, String transDate) {
         try {
             if (row.getRowNum() == 0) return;
 
             Cell timeTransCell = row.getCell(1);
-            String formattedTimeDate = getDate(timeTransCell);
-            if (!formattedTimeDate.equalsIgnoreCase(transDate)) return;
+            if (!disburseDate.equalsIgnoreCase(transDate)) return;
 
+            String payName = getCellValue(row.getCell(7), workbook);
+            if(!payName.contains("ESB")){
+                return;
+            }
             String formattedTime = getTime(timeTransCell);
 
             Cell grossAmountCell = row.getCell(9);  // Grand Total
@@ -259,18 +254,18 @@ public class GeneralService {
             DetailPaymentAggregator dpa = new DetailPaymentAggregator();
             dpa.setBranchId(branchId);
             dpa.setPmId(pmId);
-            dpa.setTransDate(formattedTimeDate);
+            dpa.setTransDate(disburseDate);
             dpa.setTransId(transId);
             dpa.setTransTime(formattedTime);
             dpa.setGrossAmount(grossAmount);
             dpa.setNetAmount(nettAmount);
             dpa.setPaymentId(transId + pmId);
-            dpa.setSettlementDate(formattedTimeDate);
+            dpa.setSettlementDate(disburseDate);
             dpa.setSettlementTime(formattedTime);
             dpa.setParentId(parentId);
             dpa.setCreatedBy(user);
 
-            System.out.println("mau di save gk");
+
             detailPaymentAggregatorRepository.persist(dpa);
         } catch (Exception e) {
             e.printStackTrace();
@@ -543,10 +538,6 @@ public class GeneralService {
                     dpa.setCreatedBy(user);
                     detailPaymentAggregatorRepository.persist(dpa);
                 }
-                /*String getTransDate = detailPaymentAggregatorRepository.getTransDateByParentId(parentId);
-                if(null != getTransDate){
-                    headerPaymentRepository.updateDate(parentId, getTransDate);
-                }*/
 
             }
         } catch (Exception e) {
@@ -934,8 +925,10 @@ public class GeneralService {
             request.setPmId(pmId);
             String payMeth = paymentMethodRepository.getPaymentMethodByPmId(pmId);
             if(payMeth.equalsIgnoreCase(MessageConstant.GOPAY)
-                    || payMeth.equalsIgnoreCase("QRIS (ESB)") || payMeth.equalsIgnoreCase(MessageConstant.GOFOOD) || payMeth.equalsIgnoreCase(MessageConstant.SHOPEEFOOD) || payMeth.equalsIgnoreCase(MessageConstant.GRABFOOD)){
+                    || payMeth.equalsIgnoreCase(MessageConstant.GOFOOD) || payMeth.equalsIgnoreCase(MessageConstant.SHOPEEFOOD) || payMeth.equalsIgnoreCase(MessageConstant.GRABFOOD)){
                 reconBankAggregatorForGoTo(request);
+            }else if(payMeth.equalsIgnoreCase("QRIS (ESB)")){
+                reconBankAggregatorForEsb(request);
             }
             else{
                 List<BigDecimal> netAmountBank = bankMutationRepository.getAmountBank(request, payMeth);
@@ -972,6 +965,66 @@ public class GeneralService {
                 }
             }
 
+        }
+    }
+
+    private void reconBankAggregatorForEsb(GeneralRequest request) {
+        List<String> pmIds = headerPaymentRepository.getPaymentMethodsByRequest(request);
+        String transDate = request.getTransDate();
+
+        for (String pmId : pmIds) {
+            request.setTransDate(transDate);
+            request.setPmId(pmId);
+
+            String payMeth = paymentMethodRepository.getPaymentMethodByPmId(pmId);
+            List<Map<String, Object>> dataAgg = detailPaymentAggregatorRepository.getDataAggEsb(request, payMeth);
+
+            System.out.println("data agg: " + dataAgg.size());
+
+            // Grouping dataAgg by settlement date
+            Map<String, List<Map<String, Object>>> aggBySettDate = new HashMap<>();
+            for (Map<String, Object> agg : dataAgg) {
+                String settDate = agg.get("settDate").toString();
+                aggBySettDate.computeIfAbsent(settDate, k -> new ArrayList<>()).add(agg);
+            }
+
+            for (String settDate : aggBySettDate.keySet()) {
+                request.setTransDate(settDate);
+                System.out.println("get transdate2: " + request.getTransDate());
+
+                List<Map<String, Object>> dataBank = bankMutationRepository.getDataBank(request, payMeth);
+                System.out.println("data bank: " + dataBank.size());
+
+                BigDecimal totalAggAmount = BigDecimal.ZERO;
+                List<Map<String, Object>> currentAggList = aggBySettDate.get(settDate);
+                for (Map<String, Object> agg : currentAggList) {
+                    totalAggAmount = totalAggAmount.add((BigDecimal) agg.get("netAmount"));
+                }
+
+                for (Map<String, Object> bank : dataBank) {
+                    BigDecimal bankAmount = (BigDecimal) bank.get("netAmount");
+
+                    // Khusus ShopeeFood: tidak peduli tanggal
+                    if (payMeth.equalsIgnoreCase(MessageConstant.SHOPEEFOOD)) {
+                        totalAggAmount = dataAgg.stream()
+                                .map(a -> (BigDecimal) a.get("netAmount"))
+                                .reduce(BigDecimal.ZERO, BigDecimal::add);
+                    }
+
+                    if (totalAggAmount.compareTo(bankAmount) == 0) {
+                        // Update detail aggregator
+                        for (Map<String, Object> agg : currentAggList) {
+                            detailPaymentAggregatorRepository.updateDataReconAgg2Bank(
+                                    (Long) agg.get("detailPaymentId"),
+                                    bank.get("bankMutationId").toString(), request.getUser()
+                            );
+                        }
+                        // Update flag bank
+                        bankMutationRepository.updateFlagBank(bank.get("bankMutationId").toString(), request.getUser());
+                        break; // break karena sudah match
+                    }
+                }
+            }
         }
     }
 
