@@ -679,8 +679,6 @@ public class DetailPaymentAggregatorRepository implements PanacheRepository<com.
           AND flag_rekon_bank = '0'
         """;
 
-        System.out.println("ini query "+ query);
-        System.out.println("ini pm id "+ request.getPmId());
         Query nativeQuery = entityManager.createNativeQuery(query)
                 .setParameter(1, request.getTransDate())
                 .setParameter(2, request.getPmId());
@@ -705,7 +703,6 @@ public class DetailPaymentAggregatorRepository implements PanacheRepository<com.
                     default -> settlementDate.plusDays(1);
                 };
             }
-            System.out.println("ini settdate "+ settlementDate.toString());
             map.put("settDate", settlementDate.toString());
             return map;
         }).collect(Collectors.toList());
@@ -863,4 +860,51 @@ public class DetailPaymentAggregatorRepository implements PanacheRepository<com.
         }
     }
 
+    public List<Map<String, Object>> getDataAggEsb(GeneralRequest request, String payMeth) {
+        String subQuery = """
+        SELECT parent_id
+        FROM detail_agregator_payment
+        WHERE trans_date = ?1
+          AND pm_id = ?2
+          AND flag_rekon_bank = '0'
+        ORDER BY CONCAT(created_on, ' ', created_at) DESC
+        LIMIT 1
+        """;
+
+        String query = """
+        SELECT detail_payment_id, net_amount, settlement_date
+        FROM detail_agregator_payment
+        WHERE parent_id = (""" + subQuery + """
+        )
+          AND flag_rekon_bank = '0'
+        """;
+
+        Query nativeQuery = entityManager.createNativeQuery(query)
+                .setParameter(1, request.getTransDate())
+                .setParameter(2, request.getPmId());
+
+        List<Object[]> rawResults = nativeQuery.getResultList();
+
+        return rawResults.stream().map(row -> {
+            Map<String, Object> map = new HashMap<>();
+            map.put("detailPaymentId", row[0]);
+            map.put("netAmount", row[1]);
+
+            LocalDate settlementDate = LocalDate.parse(row[2].toString().substring(0, 10));
+            if (payMeth.equalsIgnoreCase(MessageConstant.SHOPEEFOOD)) {
+                settlementDate = settlementDate.plusDays(1);
+            } else if (payMeth.equalsIgnoreCase(MessageConstant.GRABFOOD)
+                    || payMeth.equalsIgnoreCase("QRIS (ESB)")) {
+                settlementDate = settlementDate;
+            } else {
+                settlementDate = switch (settlementDate.getDayOfWeek()) {
+                    case FRIDAY -> settlementDate.plusDays(3);
+                    case SATURDAY -> settlementDate.plusDays(2);
+                    default -> settlementDate.plusDays(1);
+                };
+            }
+            map.put("settDate", settlementDate.toString());
+            return map;
+        }).collect(Collectors.toList());
+    }
 }
