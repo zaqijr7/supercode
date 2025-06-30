@@ -237,10 +237,6 @@ public class GeneralService {
             Cell timeTransCell = row.getCell(1);
             if (!disburseDate.equalsIgnoreCase(transDate)) return;
 
-            String payName = getCellValue(row.getCell(7), workbook);
-            if(!payName.contains("ESB")){
-                return;
-            }
             String formattedTime = getTime(timeTransCell);
 
             Cell grossAmountCell = row.getCell(9);  // Grand Total
