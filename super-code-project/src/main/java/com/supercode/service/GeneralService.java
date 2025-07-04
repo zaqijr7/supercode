@@ -111,7 +111,7 @@ public class GeneralService {
                     bankMutationService.saveDetailBankBca(file, pmId, branchId, parentId, transDate, user);
                 }else bankMutationService.saveDetailBank(file, pmId, branchId, parentId, transDate, user);
 
-            }else if(paymentType.equalsIgnoreCase("ESB")){
+            }else if(paymentType.equalsIgnoreCase("ESB - QRIS")){
                 saveDetailEsb(file, pmId, branchId, parentId, transDate, user);
             }
             else {
