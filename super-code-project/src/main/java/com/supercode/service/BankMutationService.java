@@ -214,6 +214,24 @@ public class BankMutationService {
             // Mulai membaca data transaksi dari baris ke-7 ke bawah (asumsi format BCA)
             for (Row row : sheet) {
                 if (row.getRowNum() < 7) continue;
+
+                Cell dateCell = row.getCell(0);
+                if (dateCell == null) break;
+
+                // Cek apakah cell 0 adalah tanggal yang valid (bisa tipe NUMERIC atau STRING dengan format tertentu)
+                boolean validDate = false;
+                if (dateCell.getCellType() == CellType.NUMERIC && DateUtil.isCellDateFormatted(dateCell)) {
+                    validDate = true;
+                } else if (dateCell.getCellType() == CellType.STRING) {
+                    String val = dateCell.getStringCellValue().trim();
+                    validDate = val.matches("\\d{1,2}/\\d{1,2}"); // contoh: 29/04
+                }
+
+                if (!validDate) {
+                    // Keluar dari loop karena sudah tidak sesuai format
+                    break;
+                }
+
                 processRowBca(row, pmId, parentId, accountNo, transDate, user);
             }
         }
@@ -222,7 +240,7 @@ public class BankMutationService {
         private void processRowBca(Row row, String pmId, String parentId, String accountNo, String transDate, String user) {
             try {
                 String notes = getCellValue(row.getCell(1));
-                String formattedTimeDate = generalService.getFormattedDate(row.getCell(0));
+                String formattedTimeDate = getFormattedDate(row.getCell(0), transDate);
                 if(!formattedTimeDate.equalsIgnoreCase(transDate)){
                     return;
                 }
@@ -246,6 +264,33 @@ public class BankMutationService {
                 e.printStackTrace();
             }
         }
+
+    String getFormattedDate(Cell dateCell, String transDate) {
+        try {
+            if (dateCell.getCellType() == CellType.NUMERIC) {
+                Date date = dateCell.getDateCellValue();
+                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+                return sdf.format(date);
+            } else if (dateCell.getCellType() == CellType.STRING) {
+                String rawDate = dateCell.getStringCellValue().trim(); // contoh: "29/04"
+
+                // Ambil hanya tahun dari transDate (misalnya: "2025-04-29")
+                String year = transDate.substring(0, 4); // hasil: "2025"
+
+                // Gabungkan jadi "29/04/2025"
+                String combinedDate = rawDate + "/" + year;
+
+                // Parsing dan format
+                SimpleDateFormat inputFormat = new SimpleDateFormat("dd/MM/yyyy");
+                SimpleDateFormat outputFormat = new SimpleDateFormat("yyyy-MM-dd");
+                Date date = inputFormat.parse(combinedDate);
+                return outputFormat.format(date);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
 
 
 
