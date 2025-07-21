@@ -143,14 +143,34 @@ public class BankMutationService {
         };
     }
 
-    double getNumericCellValue(Cell cell) {
-        if (cell == null) return 0;
-        return switch (cell.getCellType()) {
-            case NUMERIC -> cell.getNumericCellValue();
-            case STRING -> Double.parseDouble(cell.getStringCellValue().replace(",", ""));
-            default -> 0;
-        };
+    private double getNumericCellValue(Cell cell) {
+        try {
+            if (cell == null) return 0.0;
+
+            switch (cell.getCellType()) {
+                case NUMERIC:
+                    return cell.getNumericCellValue();
+
+                case STRING:
+                    String raw = cell.getStringCellValue();
+                    // Hapus "CR", koma, dan spasi
+                    String cleaned = raw.replace("CR", "")
+                            .replace(",", "")
+                            .replace(" ", "")
+                            .trim();
+
+                    return Double.parseDouble(cleaned);
+
+                default:
+                    return 0.0;
+            }
+
+        } catch (Exception e) {
+            System.err.println("Gagal parsing cell ke double: " + e.getMessage());
+            return 0.0;
+        }
     }
+
 
     private String getFileExtension(String fileName) {
         if (fileName == null || fileName.isEmpty()) return "";
@@ -244,7 +264,7 @@ public class BankMutationService {
                 if(!formattedTimeDate.equalsIgnoreCase(transDate)){
                     return;
                 }
-                double creditAmount = getNumericCellValue(row.getCell(4));
+                double creditAmount = getNumericCellValue(row.getCell(3));
                 BigDecimal grossAmount = new BigDecimal(creditAmount);
                 String debitCredit = creditAmount > 0 ? "Credit" : "Debit";
                 String pmName = paymentMethodRepository.getPaymentMethodByPmId(pmId);
@@ -264,6 +284,9 @@ public class BankMutationService {
                 e.printStackTrace();
             }
         }
+
+
+
 
     String getFormattedDate(Cell dateCell, String transDate) {
         try {
