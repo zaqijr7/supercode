@@ -153,8 +153,9 @@ public class BankMutationService {
 
                 case STRING:
                     String raw = cell.getStringCellValue();
-                    // Hapus "CR", koma, dan spasi
+                    // Hapus "CR", "DB", koma, dan spasi
                     String cleaned = raw.replace("CR", "")
+                            .replace("DB", "")
                             .replace(",", "")
                             .replace(" ", "")
                             .trim();
@@ -170,6 +171,7 @@ public class BankMutationService {
             return 0.0;
         }
     }
+
 
 
     private String getFileExtension(String fileName) {
