@@ -269,6 +269,10 @@ public class BankMutationService {
                 double creditAmount = getNumericCellValue(row.getCell(3));
                 BigDecimal grossAmount = new BigDecimal(creditAmount);
                 String debitCredit = creditAmount > 0 ? "Credit" : "Debit";
+                if(row.getCell(3).toString().contains("DB")){
+                    debitCredit = "Debit";
+                }
+
                 String pmName = paymentMethodRepository.getPaymentMethodByPmId(pmId);
 
                 BankMutation bm = new BankMutation();
